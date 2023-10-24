@@ -1,0 +1,30 @@
+############################################
+		CONFIG FILE
+Here we will define all parameters required
+to simulate the point clouds, considering all
+different scenarios and settings.		
+############################################
+
+Index	Parameter	Value	[Definition]
+0	seed	None	[Random seed used in intermediate randomizers. Options: 'None' or 'integer number'. If None option is selected, the simulator will consider the time.time() value. Specifying an int number will make all clouds and their features equal]
+1	road	True	[Whether the resulting point clouds will have a road or not. Options: 'True' or 'False']
+2	spectral_mode	None	[In case of performing a spectral simulation on the resulting point clouds. Options: 'True' or 'False'. If set True then the simulator will take longer to generate each point cloud since there are several intermediate calculations like the normals estimation or the virtual trajectory simulation]
+3	road_type	highway	[The tyoe of road to simulate. Options: 'highway', 'national', 'local' or 'mixed'. If 'mixed' option is seletced then the resulting point cloud dataset will consists in a mix of different types of roads]
+4	tree_path	/home/lino/Documentos/TESTEO_ZEBGO_Nubes/NDP_zebRevo_xures_julio_21/prueba/arboles_manuales_troncos_eliminados/automatizacion/PLANO_TRONCOS_1.000000_0.250000_DBSCAN_TRONCOS_0.100000_1_DBSCAN_CILINDRO_0.900000_10_UMBRAL_0.026263	[Absolute path to the directory where all tree segments are stored]
+5	number_of_clouds	3	[Total number of point clouds that will be simulated. It must be an integer number greater than zero]
+6	scale	10	[Geometrical scale of the resulting point cloud. Bigger scales will result in bigger sized point clouds but with less point densities. Must be an integer number greater than 0]
+7	number_of_trees	180	[Total number of trees per cloud. It must be an integer number greater than 0]
+8	number_of_transformations	3	[Number of euclidean transformations that will suffer each tree segment. Must be an int number. If the total number of tree segments specified in the 'tree_path' is less than the 'number_of_trees' then the simulator wll repeat randomly all segments until completion]
+9	road_buffer	20.0	[Width of the road in meters. Must be a float number greater than 0]
+10	shoulder_buffer	4.0	[Width of the shoulder in meters. Must be a float number greater than 0]
+11	berm_buffer	2.0	[Width of the berm in meters. Must be a float number greater than 0]
+12	slope_buffer	5.0	[Width of the slope in meters. Options: 'float number greater than 0' or 'random'. If 'random' is set, then there will be slopes with different widths in the final point clouds]
+13	noise_DTM	(0.3,0.3,0.00)	[Noise threshold in each XYZ direction per point of the DTM. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+14	noise_road	(0.3,0.3,0.00)	[Noise threshold in each XYZ direction per point of the road. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+15	noise_shoulder	(0.3,0.3,0.00)	[Noise threshold in each XYZ direction per point of the shoulders. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+16	noise_slope	(0.095,0.095,0.00)	[Noise threshold in each XYZ direction per point of the slopes. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+17	noise_berm	(0.03,0.03,0.00)	[Noise threshold in each XYZ direction per point of the berms. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+18	noise_refugee_island	(0.03,0.03,0.00)	[Noise threshold in each XYZ direction per point of the refugee island. Must be in the following bracket notation '(x,y,z)' where x y and z must be float numbers]
+19	number_trees_refugee_island	5	[Number of trees in the refugee island. Must be an integer number]
+20	number_points_DTM	100	[Number of points in the edge of the DTM grid. It should be ~10 times the scale. Must be an integer number greater than 0]
+21	vertical_pumping	True	[Whether the simulated road will have vertical pumping or not, i.e., if the points closer to the axis road will have a different height than the ones that are further. Options: 'True' or 'False']
