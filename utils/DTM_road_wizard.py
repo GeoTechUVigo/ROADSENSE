@@ -7,19 +7,13 @@ Created on Wed Oct 13 12:09:43 2021
 """
 
 
-import os
 import open3d as o3d
 import numpy as np
-# import matplotlib.pyplot as plt
-import trimesh
-# from scipy.spatial import Delaunay
 import itertools
 import copy
 
-# from LECTURAS_segmentacion_cilindrica import lectura_segmentaciones
 from signal_generator import create_elevated_signal, create_triangular_signal, create_circle_signal, create_square_signal, create_rectangular_signal
 from road_generator import Road_Generator
-# from seccion_transversal import anhadir_bombeo_autopista, anhadir_bombeo_nacional
 
 
 def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_buffer,slope_buffer,shoulder_buffer,berm_buffer,noise_DTM,noise_road,noise_slope,noise_shoulder,noise_berm,noise_refugee_island):
@@ -167,17 +161,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         for k, (i, j) in enumerate(ij):
             G[:, k] = x**i * y**j
         return G
-    
-    # This is tricky but correct:
-    coords_z = xyz.take(0,1)
-    coords_x = xyz.take(1,1)
-    coords_y = xyz.take(2,1)
-    x_min = np.min(coords_x)
-    x_max = np.max(coords_x)
-    y_min = np.min(coords_y)
-    y_max = np.max(coords_y)
-    
-        
+            
     # Just notation:
     points = xyz
     
@@ -892,9 +876,9 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     slope_points = reconstructed_slope[slope_indexes]
     # rest_points = np.array(pcd_DTM.points)[rest_indexes]
     
-    talud = o3d.geometry.PointCloud()
-    talud.points = o3d.utility.Vector3dVector(slope_points)
-    talud.paint_uniform_color([210/255,105/255,30/255])
+    slope = o3d.geometry.PointCloud()
+    slope.points = o3d.utility.Vector3dVector(slope_points)
+    slope.paint_uniform_color([210/255,105/255,30/255])
     
     # pcd_DTM = o3d.geometry.PointCloud()
     # pcd_DTM.points = o3d.utility.Vector3dVector(rest_points)
@@ -907,7 +891,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     # pcd2_3.points = o3d.utility.Vector3dVector(reconstructed_surface)
     
     # pcd2_4 = o3d.geometry.PointCloud()
-    # plane_slope = np.copy(talud_2_reconstruido)
+    # plane_slope = np.copy(slope_2_reconstruido)
     # plane_slope[:,2] = 0
     # pcd2_4.points = o3d.utility.Vector3dVector(plane_slope)
     
@@ -918,12 +902,12 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     # slope_indexes = np.where(distances > .5)[0]
     # rest_indexes = np.where(distances < .5)[0]
     
-    # slope_points = talud_2_reconstruido[slope_indexes]
+    # slope_points = slope_2_reconstruido[slope_indexes]
     # # rest_points = np.array(pcd_DTM.points)[rest_indexes]
     
-    # talud_2 = o3d.geometry.PointCloud()
-    # talud_2.points = o3d.utility.Vector3dVector(slope_points)
-    # talud_2.paint_uniform_color([210/255,105/255,30/255])
+    # slope_2 = o3d.geometry.PointCloud()
+    # slope_2.points = o3d.utility.Vector3dVector(slope_points)
+    # slope_2.paint_uniform_color([210/255,105/255,30/255])
     
     
     pcd_DTM = o3d.geometry.PointCloud()
@@ -968,9 +952,9 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     
     #-------------------------
     
-    talud = o3d.geometry.PointCloud()
-    talud.points = o3d.utility.Vector3dVector(reconstructed_slope)
-    talud.paint_uniform_color([210/255,105/255,30/255])
+    slope = o3d.geometry.PointCloud()
+    slope.points = o3d.utility.Vector3dVector(reconstructed_slope)
+    slope.paint_uniform_color([210/255,105/255,30/255])
     
     #-------------------------
     
@@ -1019,12 +1003,12 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         
         
         
-        pcd_barrier_zero = o3d.geometry.PointCloud()
+        pcd_barriers_zero = o3d.geometry.PointCloud()
         barrier_points_zero = np.copy(barrier_points)
         barrier_points_zero[:,2] = 0
-        pcd_barrier_zero.points = o3d.utility.Vector3dVector(barrier_points_zero)
+        pcd_barriers_zero.points = o3d.utility.Vector3dVector(barrier_points_zero)
 
-        distances = np.array(pcd_barrier_zero.compute_point_cloud_distance(pcd_curve),dtype=np.float64)
+        distances = np.array(pcd_barriers_zero.compute_point_cloud_distance(pcd_curve),dtype=np.float64)
         
         barrier_indexes = np.where(distances <= 0.1/2)[0]
         
@@ -1039,9 +1023,9 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
             barrier_points = np.vstack((barrier_points,elevated_points))
         
         
-        pcd_barrier = o3d.geometry.PointCloud()
-        pcd_barrier.points = o3d.utility.Vector3dVector(barrier_points)
-        pcd_barrier.paint_uniform_color([160/255.,160/255.,160/255.])
+        pcd_barriers = o3d.geometry.PointCloud()
+        pcd_barriers.points = o3d.utility.Vector3dVector(barrier_points)
+        pcd_barriers.paint_uniform_color([160/255.,160/255.,160/255.])
         
         
         
@@ -1060,17 +1044,14 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     
     indexes_curve = np.arange(0,len(berm_points))
     location_signal = np.random.choice(indexes_curve)
-    
-    point_1_road = curve_points[location_signal]
-    point_2_road = curve_points[location_signal+1]
-    
-    print('Generating traffic signal...')
+        
+    print('Generating traffic signals...')
     if road_type in ['highway','mixed']:
         
-        barrier_1 = copy.deepcopy(pcd_barrier)
-        barrier_1.translate(pcd_barrier.get_center()+np.array([2*road_buffer+0.5*shoulder_buffer,0,0]),relative=False)
-        barrier_2 = copy.deepcopy(pcd_barrier)
-        barrier_2.translate(pcd_barrier.get_center()+np.array([-2*road_buffer-0.5*shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_1 = copy.deepcopy(pcd_barriers)
+        pcd_barrier_1.translate(pcd_barriers.get_center()+np.array([2*road_buffer+0.5*shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_2 = copy.deepcopy(pcd_barriers)
+        pcd_barrier_2.translate(pcd_barriers.get_center()+np.array([-2*road_buffer-0.5*shoulder_buffer,0,0]),relative=False)
         
         
         berm_indexes = np.arange(0,len(berm_points))
@@ -1086,64 +1067,48 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         
         location_signal = np.random.choice(berm_indexes)
         location_signal_4 = berm_points[location_signal]
-                    
-        location_signal = np.random.choice(berm_indexes)
-        posicion_5_senhal = berm_points[location_signal]
-        
+                            
         # Signals and barriers facing one direction:
             
         SIGNAL,signal_center,center_first_pole,center_second_pole = create_elevated_signal(road_height=0,middle=True,visualization=False)
         
-        SIGNAL.translate(pcd_barrier.get_center())
+        SIGNAL.translate(pcd_barriers.get_center())
         SIGNAL.translate(SIGNAL.get_center()+np.array([-5,0,0]),relative=False)
         rotation_matrix = SIGNAL.get_rotation_matrix_from_xyz((0,0,np.pi))
         SIGNAL.rotate(rotation_matrix,center=SIGNAL.get_center())
         Signals_list.append(SIGNAL)
+        SIGNAL_1 = create_rectangular_signal(posicion_final=location_signal_1,road_type=road_type)
         
-        #**********************************************************************
-        #??? DEBUG SECUNDARIO
-        #**********************************************************************        
-        SIGNAL_2 = senhal_vertical_rectangular(posicion_final=location_signal_1,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
+            rotation_matrix = SIGNAL_1.get_rotation_matrix_from_xyz((0,0,np.pi))
+            SIGNAL_1.rotate(rotation_matrix,center=SIGNAL_1.get_center())
+        Signals_list.append(SIGNAL_1)
+    
         
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_2.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_2.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
+        SIGNAL_2 = create_triangular_signal(final_position=location_signal_4,road_type=road_type)
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_2.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_2.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
             rotation_matrix = SIGNAL_2.get_rotation_matrix_from_xyz((0,0,np.pi))
             SIGNAL_2.rotate(rotation_matrix,center=SIGNAL_2.get_center())
         Signals_list.append(SIGNAL_2)
     
-        
-        SIGNAL_4 = senhal_vertical_triangular(posicion_final=location_signal_4,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
-        
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_4.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_4.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
-            rotation_matrix = SIGNAL_4.get_rotation_matrix_from_xyz((0,0,np.pi))
-            SIGNAL_4.rotate(rotation_matrix,center=SIGNAL_4.get_center())
-        Signals_list.append(SIGNAL_4)
     
+        # Signals and barriers in the other direction:
     
+        SIGNAL_3 = create_circle_signal(final_position=location_signal_4,road_type=road_type)
     
-    
-    
-    
-    
-    
-    
-    
-        # Señales y barreras apuntando en la otra dirección:
-    
-        SIGNAL_3 = senhal_vertical_circular(posicion_final=location_signal_2,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
-    
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_3.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_3.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_3.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_3.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
             rotation_matrix = SIGNAL_3.get_rotation_matrix_from_xyz((0,0,np.pi))
             SIGNAL_3.rotate(rotation_matrix,center=SIGNAL_3.get_center())
         Signals_list.append(SIGNAL_3)
@@ -1151,96 +1116,40 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     
     
     
-        SIGNAL_5 = senhal_vertical_cuadrada(posicion_final=posicion_5_senhal,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
+        SIGNAL_4 = create_square_signal(final_position=location_signal_4,road_type=road_type)
         
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_5.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_5.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
-            rotation_matrix = SIGNAL_5.get_rotation_matrix_from_xyz((0,0,np.pi))
-            SIGNAL_5.rotate(rotation_matrix,center=SIGNAL_5.get_center())
-        Signals_list.append(SIGNAL_5)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-        # punto_3_carretera = center_first_pole
-        # punto_4_carretera = center_second_pole
-        
-        # # Ahora hay que trasladarla al punto que queremos y rotarla:
-        
-        # import copy
-        # SIGNAL = copy.deepcopy(SIGNAL).translate((point_1_road[0],point_1_road[1],signal_center[2]),relative=False)
-        # # SIGNAL = copy.deepcopy(SIGNAL).translate((point_1_road))
-        
-        # # def distancia_euclidea(p1,p2):
-        # #     r = np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)
-        # #     return r
-        
-        # def distancia_polar(punto_1,punto_2):
-        #     r = np.sqrt((punto_1[0]-punto_2[0])**2+(punto_1[1]-punto_2[1])**2)
-        #     return r
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_4.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_4.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
+            rotation_matrix = SIGNAL_4.get_rotation_matrix_from_xyz((0,0,np.pi))
+            SIGNAL_4.rotate(rotation_matrix,center=SIGNAL_4.get_center())
+        Signals_list.append(SIGNAL_4)
         
         
-        
-        # d_23 = distancia_polar(point_2_road, punto_3_carretera)
-        # d_12 = distancia_polar(point_1_road, point_2_road)
-        
-        # theta_prima = np.arctan(d_23/d_12)
-        
-        # theta = (1.0*np.pi)-theta_prima
-        # # theta = 90-theta_prima
-        
-        # print('Ángulo de rotación: ',theta)
-        
-        # # print()
-        # # print(SIGNAL,center_second_pole)
-        # # print()
-        
-        # rotation_matrix = SIGNAL.get_rotation_matrix_from_xyz((0,0,theta))
-        # SIGNAL.rotate(rotation_matrix,center=(point_1_road[0],point_1_road[1],signal_center[2]))
-        # # SIGNAL = copy.deepcopy(SIGNAL).translate((point_2_road))
-        
-        
-        if visualizacion:
-        
-            # PARÓN PARA VISUALIZAR -------------------------------------------------------
-            
-            o3d.visualization.draw(pcd_DTM+pcd_road+talud)
-            
-            #------------------------------------------------------------------------------
 
 
-    if road_type == 'nacional':
+    if road_type == 'national':
        
         
-        barrier_1 = copy.deepcopy(pcd_barrier)
-        barrier_1.translate(pcd_barrier.get_center()+np.array([road_buffer+shoulder_buffer,0,0]),relative=False)
-        barrier_2 = copy.deepcopy(pcd_barrier)
-        barrier_2.translate(pcd_barrier.get_center()+np.array([-road_buffer-shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_1 = copy.deepcopy(pcd_barriers)
+        pcd_barrier_1.translate(pcd_barriers.get_center()+np.array([road_buffer+shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_2 = copy.deepcopy(pcd_barriers)
+        pcd_barrier_2.translate(pcd_barriers.get_center()+np.array([-road_buffer-shoulder_buffer,0,0]),relative=False)
        
-        distances_a_quitamiedos_1 = np.array(pcd_berm.compute_point_cloud_distance(barrier_1))
-        distances_a_quitamiedos_2 = np.array(pcd_berm.compute_point_cloud_distance(barrier_2))
+        distance_to_pcd_barrier_1 = np.array(pcd_berm.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.array(pcd_berm.compute_point_cloud_distance(pcd_barrier_2))
        
         berm_points = np.array(pcd_berm.points)
        
-        berm_indexes_1 = np.where(distances_a_quitamiedos_1 <= 0.5)
-        berm_indexes_2 = np.where(distances_a_quitamiedos_2 > 0.5)
+        berm_indexes_1 = np.where(distance_to_pcd_barrier_1 <= 0.5)
+        berm_indexes_2 = np.where(distance_to_pcd_barrier_2 > 0.5)
         
         berm_points_1 = berm_points[berm_indexes_1]
         berm_points_2 = berm_points[berm_indexes_2]
         
-        # Voy a garantizar dos señales en un carril y otras dos en el otro:
+        # We guarantee 2 signals per direction (this can be changed by the user)
         
         location_signal = np.random.choice(len(berm_points_1))
         location_signal_1 = berm_points[location_signal]
@@ -1255,105 +1164,96 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         location_signal = np.random.choice(len(berm_points_2))
         location_signal_4 = berm_points[location_signal]
 
-        # Señales y barreras apuntando en una dirección:
-                 
-        SIGNAL_1 = senhal_vertical_circular(posicion_final=location_signal_1,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
+        # Signals and barriers facing one direction:
+        SIGNAL_1 = create_rectangular_signal(posicion_final=location_signal_1,road_type=road_type)
         
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_1.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_1.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
             rotation_matrix = SIGNAL_1.get_rotation_matrix_from_xyz((0,0,np.pi))
             SIGNAL_1.rotate(rotation_matrix,center=SIGNAL_1.get_center())
         Signals_list.append(SIGNAL_1)
     
-        SIGNAL_3 = senhal_vertical_rectangular(posicion_final=location_signal_3,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
         
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_3.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_3.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
-            rotation_matrix = SIGNAL_3.get_rotation_matrix_from_xyz((0,0,np.pi))
-            SIGNAL_3.rotate(rotation_matrix,center=SIGNAL_3.get_center())
-        Signals_list.append(SIGNAL_3)
-            
-    
-        # Señales y barreras apuntando en la otra dirección:
-    
-        SIGNAL_2 = senhal_vertical_cuadrada(posicion_final=location_signal_2,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
-    
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_2.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_2.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
+        SIGNAL_2 = create_triangular_signal(final_position=location_signal_2,road_type=road_type)
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_2.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_2.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
             rotation_matrix = SIGNAL_2.get_rotation_matrix_from_xyz((0,0,np.pi))
             SIGNAL_2.rotate(rotation_matrix,center=SIGNAL_2.get_center())
         Signals_list.append(SIGNAL_2)
+    
+    
+        # Signals and barriers in the other direction:
+    
+        SIGNAL_3 = create_circle_signal(final_position=location_signal_3,road_type=road_type)
+    
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_3.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_3.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
+            rotation_matrix = SIGNAL_3.get_rotation_matrix_from_xyz((0,0,np.pi))
+            SIGNAL_3.rotate(rotation_matrix,center=SIGNAL_3.get_center())
+        Signals_list.append(SIGNAL_3)
+    
+    
+    
+    
+        SIGNAL_4 = create_square_signal(final_position=location_signal_4,road_type=road_type)
         
-       
-        SIGNAL_4 = senhal_vertical_triangular(posicion_final=location_signal_4,road_type=road_type,voxel_downsampling_size=voxel_downsampling_size)
-        
-        # Calculo si está en la zona del carril izquierdo o derecho:
-        distancia_a_quitamiedos_1 = np.mean(SIGNAL_4.compute_point_cloud_distance(barrier_1))
-        distancia_a_quitamiedos_2 = np.mean(SIGNAL_4.compute_point_cloud_distance(barrier_2))
-        if distancia_a_quitamiedos_1 < distancia_a_quitamiedos_2:
-            # Giramos la señal:
+        # We compute wether is at the left or the right lane:
+        distance_to_pcd_barrier_1 = np.mean(SIGNAL_4.compute_point_cloud_distance(pcd_barrier_1))
+        distance_to_pcd_barrier_2 = np.mean(SIGNAL_4.compute_point_cloud_distance(pcd_barrier_2))
+        if distance_to_pcd_barrier_1 < distance_to_pcd_barrier_2:
+            # We rotate the signal to face the correct direction:
             rotation_matrix = SIGNAL_4.get_rotation_matrix_from_xyz((0,0,np.pi))
             SIGNAL_4.rotate(rotation_matrix,center=SIGNAL_4.get_center())
         Signals_list.append(SIGNAL_4)
+        
 
     if road_type == 'local':
         
+        # No signals (this can be changed by the user)
         Signals_list = []
-        barrier_1 = o3d.geometry.PointCloud()
-        barrier_2 = o3d.geometry.PointCloud()
+        pcd_barrier_1 = o3d.geometry.PointCloud()
+        pcd_barrier_2 = o3d.geometry.PointCloud()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # import pdb
-    # pdb.set_trace()
 
     if road_type == 'local':
-        # Fusiono el arcén y la berma con la carretera:
+        # We merge the shoulder and the berm with the road:
         pcd_road += pcd_shoulder
         pcd_road += pcd_berm
         pcd_road.paint_uniform_color([0,0,0])
 
-    print('Señal generada')
 
-    SUPERFICIES[s] = pcd_DTM
-    CARRETERAS[s] = pcd_road
-    TALUDES[s] = talud
+    print('Signals simulation completed')
+
+    # Just notation:
+    SURFACE = pcd_DTM
+    ROAD = pcd_road
+    SLOPE = slope
     
     for LL in range(len(Signals_list)):
-        SIGNALES[s+LL] = Signals_list[LL]
+        SIGNALS = Signals_list[LL]
     
-    if road_type in ['autovia','autopista','nacional']:
-        ARCENES[s] = pcd_shoulder
-        BERMAS[s] = pcd_berm
+    if road_type in ['highway','mixed','national']:
+        SHOULDER = pcd_shoulder
+        BERMS = pcd_berm
         
 
-    if road_type in ['autovia','autopista']:
-        MEDIANAS[s] = pcd_refugee_island
-        return SUPERFICIES,CARRETERAS,TALUDES,ARCENES,SIGNALES,BERMAS,MEDIANAS,pcd_barrier,barrier_1,barrier_2,Signals_list
+    if road_type in ['highway','mixed']:
+        REFUGEE_ISLAND = pcd_refugee_island
+        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2
+    
     elif road_type == 'local':
-        return SUPERFICIES,CARRETERAS,TALUDES,ARCENES,SIGNALES,barrier_1,barrier_2,Signals_list
+        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,pcd_barrier_1,pcd_barrier_2
     elif road_type == 'nacional':
-        return SUPERFICIES,CARRETERAS,TALUDES,ARCENES,SIGNALES,BERMAS,barrier_1,barrier_2,Signals_list
+        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,pcd_barriers,pcd_barrier_1,pcd_barrier_2
 
 
 
