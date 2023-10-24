@@ -10,14 +10,6 @@ import copy
 import os
 import open3d as o3d
 import numpy as np
-# import matplotlib.pyplot as plt
-# import trimesh
-# from scipy.spatial import Delaunay
-# import itertools
-# from matplotlib import cm
-# from matplotlib.colors import LightSource
-# import math
-
 
 SIGNALS = {}
 
@@ -77,7 +69,7 @@ def create_elevated_signal(road_height,middle=True,visualization=False,center_fi
     
     #------------------------------------------------------------------------------
     # Uncomment to debug visualization:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL)
+    # o3d.visualization.draw(SIGNAL)
     #------------------------------------------------------------------------------
     
     # crossbar_width = 10
@@ -91,7 +83,7 @@ def create_elevated_signal(road_height,middle=True,visualization=False,center_fi
     
     #------------------------------------------------------------------------------
     # Uncomment to debug visualization:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
+    # o3d.visualization.draw(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
     #------------------------------------------------------------------------------
     
     lenghts = np.linspace(center_first_pole[0],crossbar_width,50)
@@ -131,7 +123,7 @@ def create_elevated_signal(road_height,middle=True,visualization=False,center_fi
     
     #------------------------------------------------------------------------------
     # Uncomment to debug visualization:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
+    # o3d.visualization.draw(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
     #------------------------------------------------------------------------------
     
     pcd_pole_4 = copy.deepcopy(pcd_pole_3).translate((center_first_pole[0], center_first_pole[1], crossbar_height/2.))
@@ -140,7 +132,7 @@ def create_elevated_signal(road_height,middle=True,visualization=False,center_fi
     
     #------------------------------------------------------------------------------
     # Uncomment to debug visualization:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
+    # o3d.visualization.draw(SIGNAL,segmentado=True,pcd2=SIGNAL[0])
     #------------------------------------------------------------------------------
     
     
@@ -264,16 +256,13 @@ def create_elevated_signal(road_height,middle=True,visualization=False,center_fi
     #------------------------------------------------------------------------------
     # Uncomment to debug visualization:
     # if visualization:
-        # visor.custom_draw_geometry_with_key_callback(SIGNALS,segmentado=True,pcd2=SIGNAL)
+        # o3d.visualization.draw(SIGNALS,segmentado=True,pcd2=SIGNAL)
     #------------------------------------------------------------------------------
 
     return SIGNAL,signal_center,center_first_pole,center_second_pole
 
 
 
-#**********************************************************************
-#??? DEBUG SECUNDARIO
-#**********************************************************************        
 
 
 
@@ -284,350 +273,286 @@ def create_triangular_signal(final_position,road_type,voxel_downsampling_size=10
     :param final_position: List with [X, Y, Z] coordinates of the main pole position
     :param road_type: String with the type of road
     :param voxel_downsampling_size: [Experimental] Size of the cell within the downsampling
-    :return: Point cloud of the full signal and coordinates of each pole center
+    :return: Point cloud of the full signal as a o3d.geometry.PointCloud() object
     """ 
     position = [0,0,0]
     
     
-    if road_type in ['autopista','autovia']:
+    if road_type in ['highway','mixed']:
         
-        lado = 1.750 # Cada lado del triángulo mide 1.75 por ley
-        altura_maxima_poste = 3
+        edge = 1.750 # Each side of the triangle is 1.75 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
-    elif road_type in ['nacional','comarcal']:
+    elif road_type == 'national':
         
-        lado = 1.350 # Cada lado del triángulo mide 1.35 por ley
-        altura_maxima_poste = 3
+        edge = 1.350 # Each side of the triangle is 1.35 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
     elif road_type == 'local':
         
-        lado = 0.900 # Cada lado del triángulo mide 1.35 por ley
-        altura_maxima_poste = 3
+        edge = 0.900 # Each side of the triangle is 0.9 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
     
 
-    heightS_poste = np.linspace(position[2],altura_maxima_poste,50)       
+    pole_heightS = np.linspace(position[2],pole_maximum_height,50)       
     angleS = np.linspace(0,2*np.pi,100)
     
-    POSTE = []
+    POLE = []
     
-    for i in range(len(heightS_poste)):
+    for i in range(len(pole_heightS)):
         for j in range(len(angleS)):
             x = pole_radius*np.cos(angleS[j])
             y = pole_radius*np.sin(angleS[j])
-            POSTE.append([x,y,heightS_poste[i]])
+            POLE.append([x,y,pole_heightS[i]])
         
-    POSTE = np.array(POSTE)    
+    POLE = np.array(POLE)    
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(POSTE)
+        pcd2.points = o3d.utility.Vector3dVector(POLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        POSTE = np.array(pcd2.points)    
+        POLE = np.array(pcd2.points)    
     
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.005,len(POSTE.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.005,len(POSTE.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.08,len(POSTE.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.005,len(POLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.005,len(POLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.08,len(POLE.take(0,1)[1:-2]))
     
-    POSTE[:, 0] = np.reshape(POSTE.take(0,1) + noise_x_axis, -1)
-    POSTE[:, 1] = np.reshape(POSTE.take(1,1) + noise_y_axis, -1)
-    POSTE[1:-2, 2] = np.reshape(POSTE.take(2,1)[1:-2] + noise_z_axis, -1)
+    POLE[:, 0] = np.reshape(POLE.take(0,1) + noise_x_axis, -1)
+    POLE[:, 1] = np.reshape(POLE.take(1,1) + noise_y_axis, -1)
+    POLE[1:-2, 2] = np.reshape(POLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
     poste = o3d.geometry.PointCloud()
-    poste.points = o3d.utility.Vector3dVector(POSTE)
+    poste.points = o3d.utility.Vector3dVector(POLE)
     poste.paint_uniform_color(np.array([160/255.,160/255.,160/255.]))
     
     SIGNALS[len(SIGNALS)] = poste
 
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(poste)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(poste)
     #------------------------------------------------------------------------------
 
 
-    # Vamos a crear un triángulo.
-    # El primer point será el vértice superior:
+    # Let's create a triangle. The first point will be the upper vertex:
     
     N_points = int(300/2)
-    x_axis_1 = np.linspace(0,lado/2.,N_points)
-    x_axis_2 = np.linspace(lado/2.,lado,len(x_axis_1))
+    x_axis_1 = np.linspace(0,edge/2.,N_points)
+    x_axis_2 = np.linspace(edge/2.,edge,len(x_axis_1))
 
-    altura_triangulo_maxima = np.sqrt(lado**2 - (lado/2.)**2)
-    heightS_triangulo = np.linspace(0,altura_triangulo_maxima,len(x_axis_1))
+    maximum_height_triangle = np.sqrt(edge**2 - (edge/2.)**2)
+    triangle_heightS = np.linspace(0,maximum_height_triangle,len(x_axis_1))
 
-    TRIANGULO = []
+    TRIANGLE = []
 
-    # Calculo la ecuación de la recta que pasa por las middlees del
-    # triángulo (z = mx + n):
-    m1 = altura_triangulo_maxima/(lado/2.)
+    # We compute the equation of the rect that goes through the middle of the
+    # triangle (z = mx + n):
+    m1 = maximum_height_triangle/(edge/2.)
     n1 = 0
     
-    m2 = -2*altura_triangulo_maxima/lado
-    n2 = 2*altura_triangulo_maxima
+    m2 = -2*maximum_height_triangle/edge
+    n2 = 2*maximum_height_triangle
 
-    for i in range(len(heightS_triangulo)):
+    for i in range(len(triangle_heightS)):
         for j in range(len(x_axis_1)):
             x1 = x_axis_1[j]
             x2 = x_axis_2[j]
             y = position[1]
-            z = heightS_triangulo[i]
+            z = triangle_heightS[i]
 
-            if 0 < z <= (m1*x1) + n1 and position[0] < x1 <= lado/2.:
-                TRIANGULO.append([x1,y,z])
-            if 0 < z <= (m2*x2) + n2 and x2 >= lado/2.:
-                TRIANGULO.append([x2,y,z])
+            if 0 < z <= (m1*x1) + n1 and position[0] < x1 <= edge/2.:
+                TRIANGLE.append([x1,y,z])
+            if 0 < z <= (m2*x2) + n2 and x2 >= edge/2.:
+                TRIANGLE.append([x2,y,z])
 
-    TRIANGULO = np.array(TRIANGULO)
+    TRIANGLE = np.array(TRIANGLE)
     
 
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(TRIANGULO)
+        pcd2.points = o3d.utility.Vector3dVector(TRIANGLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        TRIANGULO = np.array(pcd2.points)    
+        TRIANGLE = np.array(pcd2.points)    
 
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.008,len(TRIANGULO.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.008,len(TRIANGULO.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.008,len(TRIANGULO.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.008,len(TRIANGLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.008,len(TRIANGLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.008,len(TRIANGLE.take(0,1)[1:-2]))
     
-    TRIANGULO[:, 0] = np.reshape(TRIANGULO.take(0,1) + noise_x_axis, -1)
-    TRIANGULO[:, 1] = np.reshape(TRIANGULO.take(1,1) + noise_y_axis, -1)
-    TRIANGULO[1:-2, 2] = np.reshape(TRIANGULO.take(2,1)[1:-2] + noise_z_axis, -1)
+    TRIANGLE[:, 0] = np.reshape(TRIANGLE.take(0,1) + noise_x_axis, -1)
+    TRIANGLE[:, 1] = np.reshape(TRIANGLE.take(1,1) + noise_y_axis, -1)
+    TRIANGLE[1:-2, 2] = np.reshape(TRIANGLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
-    triangulo = o3d.geometry.PointCloud()
-    triangulo.points = o3d.utility.Vector3dVector(TRIANGULO)
-    triangulo.paint_uniform_color(np.array([255/255.,0/255.,0/255.]))
+    triangle = o3d.geometry.PointCloud()
+    triangle.points = o3d.utility.Vector3dVector(TRIANGLE)
+    triangle.paint_uniform_color(np.array([255/255.,0/255.,0/255.]))
     
     y_individual_signal = position[0]
     
-    # pcd_pole_2 = copy.deepcopy(pcd_pole_1).translate((crossbar_width, center_first_pole[1], center_first_pole[2]))
-    triangulo = copy.deepcopy(triangulo).translate((position[0],y_individual_signal+pole_radius*1.5,(altura_maxima_poste-0.4)+(altura_triangulo_maxima/2.3)),relative=False)
-    triangulo_orig = copy.deepcopy(triangulo)
+    triangle = copy.deepcopy(triangle).translate((position[0],y_individual_signal+pole_radius*1.5,(pole_maximum_height-0.4)+(maximum_height_triangle/2.3)),relative=False)
+    triangle_orig = copy.deepcopy(triangle)
     N_copias = 10
     for k in range(N_copias):
-        aux = copy.deepcopy(triangulo_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(altura_maxima_poste-0.4)+(altura_triangulo_maxima/2.3)),relative=False)
-        triangulo += aux
+        aux = copy.deepcopy(triangle_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(pole_maximum_height-0.4)+(maximum_height_triangle/2.3)),relative=False)
+        triangle += aux
     
-    # IGUAL habría que redondear un poco las esquinas, pero bueno...
-    SIGNALS[len(SIGNALS)] = triangulo
+    SIGNALS[len(SIGNALS)] = triangle
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(triangulo)
-    #------------------------------------------------------------------------------
-
-    SIGNAL = triangulo + poste
-
-    #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(triangle)
     #------------------------------------------------------------------------------
 
+    SIGNAL = triangle + poste
 
-    # # Quito de forma random points para que no me quede sumamente densa la nube:
-    points_SIGNAL = np.array(SIGNAL.points)
-    colors_SIGNAL = np.array(SIGNAL.colors)
-    # lista_auxiliar = np.arange(0,len(points_SIGNAL),1)
-    # indices = np.random.choice(lista_auxiliar,size=50000,replace=False)
-    
-    # print(indices)
-    
-    # points_SIGNAL = points_SIGNAL[indices]
-    # colors_SIGNAL = colors_SIGNAL[indices]
-    SIGNAL = o3d.geometry.PointCloud()
-    SIGNAL.points = o3d.utility.Vector3dVector(points_SIGNAL)
-    SIGNAL.colors = o3d.utility.Vector3dVector(colors_SIGNAL)
+    #------------------------------------------------------------------------------
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(SIGNAL)
+    #------------------------------------------------------------------------------
+
 
 
     SIGNAL.translate(([final_position[0],final_position[1],final_position[2]]))
 
-
-
-    # #------------------------------------------------------------------------------
-    # # PARÓN PARA VISUALIZAR:
-        
-    # # Voy a crear una nube de points auxiliar que me señale la posición que le
-    # # pedí para comprobar que todo salió bien:
-        
-    # N_points_esfera = 1000
-    # R_esfera = 0.1
-    # points_esfera = []
-    # for g in range(N_points_esfera):
-    #     points_esfera.append([np.random.uniform(final_position[0]-R_esfera,final_position[0]+R_esfera),
-    #                           np.random.uniform(final_position[1]-R_esfera,final_position[1]+R_esfera),
-    #                           np.random.uniform(final_position[2]-R_esfera,final_position[2]+R_esfera)])
-
-    # points_esfera = np.array(points_esfera)
-
-    # nube_esfera = o3d.geometry.PointCloud()
-    # nube_esfera.points = o3d.utility.Vector3dVector(points_esfera)
-    # nube_esfera.paint_uniform_color([0,0,0])
-        
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL+nube_esfera)
-    # #------------------------------------------------------------------------------
 
     return SIGNAL
         
 
 
 def create_circle_signal(final_position,road_type,voxel_downsampling_size=1000000):
-    
+    """
+    Function to generate vertical-circle signals
+
+    :param final_position: List with [X, Y, Z] coordinates of the main pole position
+    :param road_type: String with the type of road
+    :param voxel_downsampling_size: [Experimental] Size of the cell within the downsampling
+    :return: Point cloud of the full signal as a o3d.geometry.PointCloud() object
+    """ 
     position=[0,0,0]
     
-    if road_type in ['autopista','autovia']:
+    if road_type in ['highway','mixed']:
         
-        diametro = 1.20 # El diámetro del círculo mide 1.2 por ley
-        altura_maxima_poste = 3
+        diameter = 1.20 # The diameter of the circle is 1.2 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
-    elif road_type in ['nacional','comarcal']:
+    elif road_type == 'national':
         
-        diametro = 0.90 # El diámetro del círculo mide 0.9 por ley
-        altura_maxima_poste = 3
+        diameter = 0.90 # The diameter of the circle is 0.9 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
     elif road_type == 'local':
         
-        diametro = 0.60 # El diámetro del círculo mide 0.6 por ley
-        altura_maxima_poste = 3
+        diameter = 0.60 # The diameter of the circle is 0.6 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
     
 
-    heightS_poste = np.linspace(position[2],altura_maxima_poste,50)       
+    pole_heightS = np.linspace(position[2],pole_maximum_height,50)       
     angleS = np.linspace(0,2*np.pi,100)
     
-    POSTE = []
+    POLE = []
     
-    for i in range(len(heightS_poste)):
+    for i in range(len(pole_heightS)):
         for j in range(len(angleS)):
             x = pole_radius*np.cos(angleS[j])
             y = pole_radius*np.sin(angleS[j])
-            POSTE.append([x,y,heightS_poste[i]])
+            POLE.append([x,y,pole_heightS[i]])
         
-    POSTE = np.array(POSTE)    
+    POLE = np.array(POLE)    
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(POSTE)
+        pcd2.points = o3d.utility.Vector3dVector(POLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        POSTE = np.array(pcd2.points)    
+        POLE = np.array(pcd2.points)    
 
     
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.005,len(POSTE.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.005,len(POSTE.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.08,len(POSTE.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.005,len(POLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.005,len(POLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.08,len(POLE.take(0,1)[1:-2]))
     
-    POSTE[:, 0] = np.reshape(POSTE.take(0,1) + noise_x_axis, -1)
-    POSTE[:, 1] = np.reshape(POSTE.take(1,1) + noise_y_axis, -1)
-    POSTE[1:-2, 2] = np.reshape(POSTE.take(2,1)[1:-2] + noise_z_axis, -1)
+    POLE[:, 0] = np.reshape(POLE.take(0,1) + noise_x_axis, -1)
+    POLE[:, 1] = np.reshape(POLE.take(1,1) + noise_y_axis, -1)
+    POLE[1:-2, 2] = np.reshape(POLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
     poste = o3d.geometry.PointCloud()
-    poste.points = o3d.utility.Vector3dVector(POSTE)
+    poste.points = o3d.utility.Vector3dVector(POLE)
     poste.paint_uniform_color(np.array([160/255.,160/255.,160/255.]))
     
     SIGNALS[len(SIGNALS)] = poste
 
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(poste)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(poste)
     #------------------------------------------------------------------------------
 
 
-    # Vamos a crear un círculo.
-    N_radios = 500
+    # Let's create a circle:
+    N_radius = 500
     
     angleS = np.linspace(0, 2*np.pi, 50)
-    radios = np.linspace(0,(diametro/2.),N_radios)
+    radius = np.linspace(0,(diameter/2.),N_radius)
     
-    # Generamos los points    
+    CIRCLE = []
     
-    CIRCULO = []
-    
-    for i in range(len(radios)):
+    for i in range(len(radius)):
         
-        x, z = radios[i] * np.cos(angleS), radios[i] * np.sin(angleS) 
+        x, z = radius[i] * np.cos(angleS), radius[i] * np.sin(angleS) 
         aux = np.stack((x,x,z),axis=1)
-        # print(len(aux[0]))
-
         
         aux[:,1] = position[0]
-        CIRCULO.append(aux)
+        CIRCLE.append(aux)
 
-    CIRCULO = np.vstack(CIRCULO)    
-    
-    # print(len(CIRCULO))
-    
-    
-    CIRCULO.reshape((len(CIRCULO),3))
+    CIRCLE = np.vstack(CIRCLE)    
+        
+    CIRCLE.reshape((len(CIRCLE),3))
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(CIRCULO)
+        pcd2.points = o3d.utility.Vector3dVector(CIRCLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        CIRCULO = np.array(pcd2.points)    
+        CIRCLE = np.array(pcd2.points)    
 
     
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.01,len(CIRCULO.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.008,len(CIRCULO.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.01,len(CIRCULO.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.01,len(CIRCLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.008,len(CIRCLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.01,len(CIRCLE.take(0,1)[1:-2]))
     
-    CIRCULO[:, 0] = np.reshape(CIRCULO.take(0,1) + noise_x_axis, -1)
-    CIRCULO[:, 1] = np.reshape(CIRCULO.take(1,1) + noise_y_axis, -1)
-    CIRCULO[1:-2, 2] = np.reshape(CIRCULO.take(2,1)[1:-2] + noise_z_axis, -1)
+    CIRCLE[:, 0] = np.reshape(CIRCLE.take(0,1) + noise_x_axis, -1)
+    CIRCLE[:, 1] = np.reshape(CIRCLE.take(1,1) + noise_y_axis, -1)
+    CIRCLE[1:-2, 2] = np.reshape(CIRCLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
-    circulo = o3d.geometry.PointCloud()
-    circulo.points = o3d.utility.Vector3dVector(CIRCULO)
-    circulo.paint_uniform_color(np.array([255/255.,0/255.,0/255.]))
+    circle = o3d.geometry.PointCloud()
+    circle.points = o3d.utility.Vector3dVector(CIRCLE)
+    circle.paint_uniform_color(np.array([255/255.,0/255.,0/255.]))
     
     y_individual_signal = position[0]
     
-    # pcd_pole_2 = copy.deepcopy(pcd_pole_1).translate((crossbar_width, center_first_pole[1], center_first_pole[2]))
-    circulo = copy.deepcopy(circulo).translate((position[0],y_individual_signal+pole_radius*1.5,(altura_maxima_poste)),relative=False)
-    circulo_orig = copy.deepcopy(circulo)
+    circle = copy.deepcopy(circle).translate((position[0],y_individual_signal+pole_radius*1.5,(pole_maximum_height)),relative=False)
+    circle_orig = copy.deepcopy(circle)
     N_copias = 10
     for k in range(N_copias):
-        aux = copy.deepcopy(circulo_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(altura_maxima_poste)),relative=False)
-        circulo += aux
+        aux = copy.deepcopy(circle_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(pole_maximum_height)),relative=False)
+        circle += aux
     
-    # IGUAL habría que redondear un poco las esquinas, pero bueno...
-    SIGNALS[len(SIGNALS)] = circulo
+    SIGNALS[len(SIGNALS)] = circle
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(triangulo)
-    #------------------------------------------------------------------------------
-
-    SIGNAL = circulo + poste
-
-    #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(triangle)
     #------------------------------------------------------------------------------
 
-    # import pdb
-    # pdb.set_trace()
+    SIGNAL = circle + poste
 
-    # # Quito de forma random points para que no me quede sumamente densa la nube:
-    points_SIGNAL = np.array(SIGNAL.points)
-    colors_SIGNAL = np.array(SIGNAL.colors)
-    # lista_auxiliar = np.arange(0,len(points_SIGNAL),1)
-    # indices = np.random.choice(lista_auxiliar,size=50000,replace=False)
-    
-    # # print(indices)
-    
-    # points_SIGNAL = points_SIGNAL[indices]
-    # colors_SIGNAL = colors_SIGNAL[indices]
-    SIGNAL = o3d.geometry.PointCloud()
-    SIGNAL.points = o3d.utility.Vector3dVector(points_SIGNAL)
-    SIGNAL.colors = o3d.utility.Vector3dVector(colors_SIGNAL)
+    #------------------------------------------------------------------------------
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(SIGNAL)
+    #------------------------------------------------------------------------------
 
 
     SIGNAL.translate(([final_position[0],final_position[1],final_position[2]]))
@@ -638,151 +563,139 @@ def create_circle_signal(final_position,road_type,voxel_downsampling_size=100000
 
 
 def create_square_signal(final_position,road_type,voxel_downsampling_size=1000000):
-    
+    """
+    Function to generate vertical-square signals
+
+    :param final_position: List with [X, Y, Z] coordinates of the main pole position
+    :param road_type: String with the type of road
+    :param voxel_downsampling_size: [Experimental] Size of the cell within the downsampling
+    :return: Point cloud of the full signal as a o3d.geometry.PointCloud() object
+    """ 
     position = [0,0,0]
     
-    if road_type in ['autopista','autovia']:
+    if road_type in ['highway','mixed']:
         
-        lado = 1.20 # Cada lado del cuadrado mide 1.20 por ley
-        altura_maxima_poste = 3
+        edge = 1.20 # Each side of the square is 1.2 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
-    elif road_type in ['nacional','comarcal']:
+    elif road_type == 'national':
         
-        lado = 0.90 # Cada lado del cuadrado mide 0.90 por ley
-        altura_maxima_poste = 3
+        edge = 0.90 # Each side of the square is 1.2 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
         
     elif road_type == 'local':
         
-        lado = 0.60 # Cada lado del cuadrado mide 0.60 por ley
-        altura_maxima_poste = 3
+        edge = 0.60 # Each side of the square is 1.2 m long (Spanish laws)
+        pole_maximum_height = 3
         pole_radius = 0.03
     
 
-    heightS_poste = np.linspace(position[2],altura_maxima_poste,50)       
+    pole_heightS = np.linspace(position[2],pole_maximum_height,50)       
     angleS = np.linspace(0,2*np.pi,100)
     
-    POSTE = []
+    POLE = []
     
-    for i in range(len(heightS_poste)):
+    for i in range(len(pole_heightS)):
         for j in range(len(angleS)):
             x = pole_radius*np.cos(angleS[j])
             y = pole_radius*np.sin(angleS[j])
-            POSTE.append([x,y,heightS_poste[i]])
+            POLE.append([x,y,pole_heightS[i]])
         
-    POSTE = np.array(POSTE)    
+    POLE = np.array(POLE)    
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(POSTE)
+        pcd2.points = o3d.utility.Vector3dVector(POLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        POSTE = np.array(pcd2.points)    
+        POLE = np.array(pcd2.points)    
 
     
     
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.005,len(POSTE.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.005,len(POSTE.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.08,len(POSTE.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.005,len(POLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.005,len(POLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.08,len(POLE.take(0,1)[1:-2]))
     
-    POSTE[:, 0] = np.reshape(POSTE.take(0,1) + noise_x_axis, -1)
-    POSTE[:, 1] = np.reshape(POSTE.take(1,1) + noise_y_axis, -1)
-    POSTE[1:-2, 2] = np.reshape(POSTE.take(2,1)[1:-2] + noise_z_axis, -1)
+    POLE[:, 0] = np.reshape(POLE.take(0,1) + noise_x_axis, -1)
+    POLE[:, 1] = np.reshape(POLE.take(1,1) + noise_y_axis, -1)
+    POLE[1:-2, 2] = np.reshape(POLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
     poste = o3d.geometry.PointCloud()
-    poste.points = o3d.utility.Vector3dVector(POSTE)
+    poste.points = o3d.utility.Vector3dVector(POLE)
     poste.paint_uniform_color(np.array([160/255.,160/255.,160/255.]))
     
     SIGNALS[len(SIGNALS)] = poste
 
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(poste)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(poste)
     #------------------------------------------------------------------------------
 
 
-    # Vamos a crear un cuadrado.
+    # Let's create a square:
     
     N_points = 100
-    x_axis = np.linspace(0,lado,N_points)
-    z_axis = np.linspace(0,lado,len(x_axis))
+    x_axis = np.linspace(0,edge,N_points)
+    z_axis = np.linspace(0,edge,len(x_axis))
 
-    heightS_cuadrado = np.linspace(0,np.max(z_axis),len(x_axis))
+    square_heightS = np.linspace(0,np.max(z_axis),len(x_axis))
 
-    CUADRADO = []
+    SQUARE = []
 
     for i in range(len(z_axis)):
         for j in range(len(x_axis)):
             x = x_axis[j]
             y = position[1]
-            z = heightS_cuadrado[i]
+            z = square_heightS[i]
 
-            CUADRADO.append([x,y,z])
+            SQUARE.append([x,y,z])
 
-    CUADRADO = np.array(CUADRADO)
+    SQUARE = np.array(SQUARE)
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(CUADRADO)
+        pcd2.points = o3d.utility.Vector3dVector(SQUARE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        CUADRADO = np.array(pcd2.points)    
+        SQUARE = np.array(pcd2.points)    
 
 
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.008,len(CUADRADO.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.008,len(CUADRADO.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.008,len(CUADRADO.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.008,len(SQUARE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.008,len(SQUARE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.008,len(SQUARE.take(0,1)[1:-2]))
     
-    CUADRADO[:, 0] = np.reshape(CUADRADO.take(0,1) + noise_x_axis, -1)
-    CUADRADO[:, 1] = np.reshape(CUADRADO.take(1,1) + noise_y_axis, -1)
-    CUADRADO[1:-2, 2] = np.reshape(CUADRADO.take(2,1)[1:-2] + noise_z_axis, -1)
+    SQUARE[:, 0] = np.reshape(SQUARE.take(0,1) + noise_x_axis, -1)
+    SQUARE[:, 1] = np.reshape(SQUARE.take(1,1) + noise_y_axis, -1)
+    SQUARE[1:-2, 2] = np.reshape(SQUARE.take(2,1)[1:-2] + noise_z_axis, -1)
     
-    cuadrado = o3d.geometry.PointCloud()
-    cuadrado.points = o3d.utility.Vector3dVector(CUADRADO)
-    cuadrado.paint_uniform_color(np.array([10/255.,0/255.,255./255.]))
+    square = o3d.geometry.PointCloud()
+    square.points = o3d.utility.Vector3dVector(SQUARE)
+    square.paint_uniform_color(np.array([10/255.,0/255.,255./255.]))
     
     y_individual_signal = position[0]
     
-    # pcd_pole_2 = copy.deepcopy(pcd_pole_1).translate((crossbar_width, center_first_pole[1], center_first_pole[2]))
-    cuadrado = copy.deepcopy(cuadrado).translate((position[0],y_individual_signal+pole_radius*1.5,(altura_maxima_poste-0.4)+(np.max(z_axis)/2.3)),relative=False)
-    cuadrado_orig = copy.deepcopy(cuadrado)
+    square = copy.deepcopy(square).translate((position[0],y_individual_signal+pole_radius*1.5,(pole_maximum_height-0.4)+(np.max(z_axis)/2.3)),relative=False)
+    square_orig = copy.deepcopy(square)
     N_copias = 10
     for k in range(N_copias):
-        aux = copy.deepcopy(cuadrado_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(altura_maxima_poste-0.4)+(np.max(z_axis)/2.3)),relative=False)
-        cuadrado += aux
+        aux = copy.deepcopy(square_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(pole_maximum_height-0.4)+(np.max(z_axis)/2.3)),relative=False)
+        square += aux
     
-    # IGUAL habría que redondear un poco las esquinas, pero bueno...
-    SIGNALS[len(SIGNALS)] = cuadrado
+    SIGNALS[len(SIGNALS)] = square
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(cuadrado)
-    #------------------------------------------------------------------------------
-
-    SIGNAL = cuadrado + poste
-
-    #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(square)
     #------------------------------------------------------------------------------
 
+    SIGNAL = square + poste
 
+    #------------------------------------------------------------------------------
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(SIGNAL)
+    #------------------------------------------------------------------------------
 
-    # Quito de forma random points para que no me quede sumamente densa la nube:
-    points_SIGNAL = np.array(SIGNAL.points)
-    colors_SIGNAL = np.array(SIGNAL.colors)
-    # lista_auxiliar = np.arange(0,len(points_SIGNAL),1)
-    # indices = np.random.choice(lista_auxiliar,size=50000,replace=False)
-    
-    # # print(indices)
-    
-    # points_SIGNAL = points_SIGNAL[indices]
-    # colors_SIGNAL = colors_SIGNAL[indices]
-    SIGNAL = o3d.geometry.PointCloud()
-    SIGNAL.points = o3d.utility.Vector3dVector(points_SIGNAL)
-    SIGNAL.colors = o3d.utility.Vector3dVector(colors_SIGNAL)
 
     SIGNAL.translate(([final_position[0],final_position[1],final_position[2]]))
 
@@ -791,212 +704,146 @@ def create_square_signal(final_position,road_type,voxel_downsampling_size=100000
 
 
 def create_rectangular_signal(final_position,road_type,voxel_downsampling_size=1000000):
-    
+    """
+    Function to generate vertical-rectangular signals
+
+    :param final_position: List with [X, Y, Z] coordinates of the main pole position
+    :param road_type: String with the type of road
+    :param voxel_downsampling_size: [Experimental] Size of the cell within the downsampling
+    :return: Point cloud of the full signal as a o3d.geometry.PointCloud() object
+    """ 
     position = [0,0,0]
     
     
-    if road_type in ['autopista','autovia']:
+    if road_type in ['highway','mixed']:
         
-        lado_horizontal = 1.20
-        lado_vertical = 1.8
-        altura_maxima_poste = 3
+        edge_horizontal = 1.20
+        edge_vertical = 1.8
+        pole_maximum_height = 3
         pole_radius = 0.03
         
-    elif road_type in ['nacional','comarcal']:
+    elif road_type == 'national':
         
-        lado_horizontal = 0.9
-        lado_vertical = 1.35
-        altura_maxima_poste = 3
+        edge_horizontal = 0.9
+        edge_vertical = 1.35
+        pole_maximum_height = 3
         pole_radius = 0.03
         
     elif road_type == 'local':
         
-        lado_horizontal = 0.6
-        lado_vertical = 0.9
-        altura_maxima_poste = 3
+        edge_horizontal = 0.6
+        edge_vertical = 0.9
+        pole_maximum_height = 3
         pole_radius = 0.03
     
 
-    heightS_poste = np.linspace(position[2],altura_maxima_poste,50)       
+    pole_heightS = np.linspace(position[2],pole_maximum_height,50)       
     angleS = np.linspace(0,2*np.pi,100)
     
-    POSTE = []
+    POLE = []
     
-    for i in range(len(heightS_poste)):
+    for i in range(len(pole_heightS)):
         for j in range(len(angleS)):
             x = pole_radius*np.cos(angleS[j])
             y = pole_radius*np.sin(angleS[j])
-            POSTE.append([x,y,heightS_poste[i]])
+            POLE.append([x,y,pole_heightS[i]])
         
-    POSTE = np.array(POSTE)    
+    POLE = np.array(POLE)    
     
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(POSTE)
+        pcd2.points = o3d.utility.Vector3dVector(POLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        POSTE = np.array(pcd2.points)    
+        POLE = np.array(pcd2.points)    
         
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.005,len(POSTE.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.005,len(POSTE.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.08,len(POSTE.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.005,len(POLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.005,len(POLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.08,len(POLE.take(0,1)[1:-2]))
     
-    POSTE[:, 0] = np.reshape(POSTE.take(0,1) + noise_x_axis, -1)
-    POSTE[:, 1] = np.reshape(POSTE.take(1,1) + noise_y_axis, -1)
-    POSTE[1:-2, 2] = np.reshape(POSTE.take(2,1)[1:-2] + noise_z_axis, -1)
+    POLE[:, 0] = np.reshape(POLE.take(0,1) + noise_x_axis, -1)
+    POLE[:, 1] = np.reshape(POLE.take(1,1) + noise_y_axis, -1)
+    POLE[1:-2, 2] = np.reshape(POLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
     poste = o3d.geometry.PointCloud()
-    poste.points = o3d.utility.Vector3dVector(POSTE)
+    poste.points = o3d.utility.Vector3dVector(POLE)
     poste.paint_uniform_color(np.array([160/255.,160/255.,160/255.]))
     
     SIGNALS[len(SIGNALS)] = poste
 
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(poste)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(poste)
     #------------------------------------------------------------------------------
 
 
-    # Vamos a crear un rectángulo.
+    # Let's create a rectangle:
     
     N_points = 100
-    x_axis = np.linspace(0,lado_horizontal,N_points)
-    z_axis = np.linspace(0,lado_vertical,len(x_axis))
+    x_axis = np.linspace(0,edge_horizontal,N_points)
+    z_axis = np.linspace(0,edge_vertical,len(x_axis))
 
-    heightS_rectangulo = np.linspace(0,np.max(z_axis),len(x_axis))
+    rectangle_heightS = np.linspace(0,np.max(z_axis),len(x_axis))
 
-    RECTANGULO = []
+    RECTANGLE = []
 
     for i in range(len(z_axis)):
         for j in range(len(x_axis)):
             x = x_axis[j]
             y = position[1]
-            z = heightS_rectangulo[i]
+            z = rectangle_heightS[i]
 
-            RECTANGULO.append([x,y,z])
+            RECTANGLE.append([x,y,z])
 
-    RECTANGULO = np.array(RECTANGULO)
+    RECTANGLE = np.array(RECTANGLE)
 
 
     if voxel_downsampling_size < 1000:
-        # Vamos a hacer voxel_downsampling:
         pcd2 = o3d.geometry.PointCloud()
-        pcd2.points = o3d.utility.Vector3dVector(RECTANGULO)
+        pcd2.points = o3d.utility.Vector3dVector(RECTANGLE)
         pcd2 = pcd2.voxel_down_sample(voxel_size=voxel_downsampling_size)
-        RECTANGULO = np.array(pcd2.points)    
+        RECTANGLE = np.array(pcd2.points)    
         
         
-    # Ahora le añadimos algo de ruido gaussiano a cada point para hacerlo más real:
-    noise_x_axis = np.random.normal(position[0],0.008,len(RECTANGULO.take(0,1)))
-    noise_y_axis = np.random.normal(position[1],0.008,len(RECTANGULO.take(0,1)))
-    noise_z_axis = np.random.normal(position[2],0.008,len(RECTANGULO.take(0,1)[1:-2]))
+    # Now we add some gaussian noise:
+    noise_x_axis = np.random.normal(position[0],0.008,len(RECTANGLE.take(0,1)))
+    noise_y_axis = np.random.normal(position[1],0.008,len(RECTANGLE.take(0,1)))
+    noise_z_axis = np.random.normal(position[2],0.008,len(RECTANGLE.take(0,1)[1:-2]))
     
-    RECTANGULO[:, 0] = np.reshape(RECTANGULO.take(0,1) + noise_x_axis, -1)
-    RECTANGULO[:, 1] = np.reshape(RECTANGULO.take(1,1) + noise_y_axis, -1)
-    RECTANGULO[1:-2, 2] = np.reshape(RECTANGULO.take(2,1)[1:-2] + noise_z_axis, -1)
+    RECTANGLE[:, 0] = np.reshape(RECTANGLE.take(0,1) + noise_x_axis, -1)
+    RECTANGLE[:, 1] = np.reshape(RECTANGLE.take(1,1) + noise_y_axis, -1)
+    RECTANGLE[1:-2, 2] = np.reshape(RECTANGLE.take(2,1)[1:-2] + noise_z_axis, -1)
     
-    rectangulo = o3d.geometry.PointCloud()
-    rectangulo.points = o3d.utility.Vector3dVector(RECTANGULO)
-    rectangulo.paint_uniform_color(np.array([10/255.,0/255.,255./255.]))
+    rectangle = o3d.geometry.PointCloud()
+    rectangle.points = o3d.utility.Vector3dVector(RECTANGLE)
+    rectangle.paint_uniform_color(np.array([10/255.,0/255.,255./255.]))
     
     y_individual_signal = position[0]
     
-    # pcd_pole_2 = copy.deepcopy(pcd_pole_1).translate((crossbar_width, center_first_pole[1], center_first_pole[2]))
-    rectangulo = copy.deepcopy(rectangulo).translate((position[0],y_individual_signal+pole_radius*1.5,(altura_maxima_poste-0.4)+(np.max(z_axis)/2.3)),relative=False)
-    rectangulo_orig = copy.deepcopy(rectangulo)
+    rectangle = copy.deepcopy(rectangle).translate((position[0],y_individual_signal+pole_radius*1.5,(pole_maximum_height-0.4)+(np.max(z_axis)/2.3)),relative=False)
+    rectangle_orig = copy.deepcopy(rectangle)
     N_copias = 10
     for k in range(N_copias):
-        aux = copy.deepcopy(rectangulo_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(altura_maxima_poste-0.4)+(np.max(z_axis)/2.3)),relative=False)
-        rectangulo += aux
+        aux = copy.deepcopy(rectangle_orig).translate((position[0],(y_individual_signal+pole_radius*1.5)+0.002*k,(pole_maximum_height-0.4)+(np.max(z_axis)/2.3)),relative=False)
+        rectangle += aux
     
-    # IGUAL habría que redondear un poco las esquinas, pero bueno...
-    SIGNALS[len(SIGNALS)] = rectangulo
+    SIGNALS[len(SIGNALS)] = rectangle
     #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(cuadrado)
-    #------------------------------------------------------------------------------
-
-    SIGNAL = rectangulo + poste
-
-    #------------------------------------------------------------------------------
-    # PARÓN PARA VISUALIZAR:
-    # visor.custom_draw_geometry_with_key_callback(SIGNAL)
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(square)
     #------------------------------------------------------------------------------
 
+    SIGNAL = rectangle + poste
 
-    # Quito de forma random points para que no me quede sumamente densa la nube:
-    points_SIGNAL = np.array(SIGNAL.points)
-    colors_SIGNAL = np.array(SIGNAL.colors)
-    # lista_auxiliar = np.arange(0,len(points_SIGNAL),1)
-    # indices = np.random.choice(lista_auxiliar,size=50000,replace=False)
-    
-    # print(indices)
-    
-    # points_SIGNAL = points_SIGNAL[indices]
-    # colors_SIGNAL = colors_SIGNAL[indices]
-    SIGNAL = o3d.geometry.PointCloud()
-    SIGNAL.points = o3d.utility.Vector3dVector(points_SIGNAL)
-    SIGNAL.colors = o3d.utility.Vector3dVector(colors_SIGNAL)
+    #------------------------------------------------------------------------------
+    # Uncomment to debug visualization:
+    # o3d.visualization.draw(SIGNAL)
+    #------------------------------------------------------------------------------
+
 
     SIGNAL.translate(([final_position[0],final_position[1],final_position[2]]))
 
     return SIGNAL
-
-
-def quitamiedos(pcd_arcenes_exteriores):
-    
-    # Del script CREADOR_CARRETERAS_ARTIFICIALES sacamos una salida que era
-    # pcd_arcen_2, una nube de points con los points de los arcenes más exter-
-    # nos (los más lejanos a la mediana). Por lo que si se trata de una carre-
-    # tera multiplataforma con mediana (tipo autopista o autovía) o de una ca-
-    # rretera convencional (tipo nacional o local), es necesario diferenciar
-    # primero ambos arcenes.
-    
-    # Para diferenciar ambos arcenes de pcd_arcenes_exteriores lo primero que
-    # haremos será un fit a los points de pcd_arcenes_exteriores. Luego, los
-    # points de pcd_arcenes_exteriores que estén por encima del fit en y se co-
-    # rresponderán a un arcén y los que estén por debajo se corresponderán al
-    # otro.
-    
-    
-    points_arcenes_combinados = np.array(pcd_arcenes_exteriores.points)
-    
-    import matplotlib.pyplot as plt
-    
-    plt.plot(points_arcenes_combinados.take(0,1),points_arcenes_combinados.take(1,1),'.',color='navy')
-    
-    z = np.polyfit(points_arcenes_combinados.take(0,1),points_arcenes_combinados.take(1,1),2)
-    p = np.poly1d(z)
-    
-    
-    x_axis = np.linspace(points_arcenes_combinados.take(0,1).min(),points_arcenes_combinados.take(0,1).max(),100)
-    y_axis = p(x_axis)
-    
-    plt.plot(x_axis,y_axis,'-',color='red')
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    return
-
-
-
-
-
-
 
 
 
