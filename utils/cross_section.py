@@ -220,7 +220,7 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     # Now we are going to rise the height of the refugee island and, from it,
     # modify the heights of the remaining elements in the road.
     
-    refugee_island = REFUGEE_ISLAND[0]
+    refugee_island = REFUGEE_ISLAND # Just notation
     refugee_island_points = np.array(refugee_island.points)
     altura_refugee_island = np.min(refugee_island_points.take(2,1))
     

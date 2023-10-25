@@ -116,12 +116,6 @@ def main():
         if road:
             if road_type in ['highway','national']:
                 
-    
-                #**********************************************************************
-                # DEBUG PRINCIPAL                             (donde estoy traduciendo)
-                #**********************************************************************        
-    
-                
                 SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
                     road_type = road_type,
                     ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
@@ -140,8 +134,15 @@ def main():
                     )
                 
                 # Cross section modification (if required on config file):
+                    
+                #**********************************************************************
+                # DEBUG PRINCIPAL                             (donde estoy traduciendo)
+                #**********************************************************************        
+                    
+                    
                 if vertical_pumping and road_type == 'highway':
-                    SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2 = highway_vertical_pumping(
+                                        
+                    SURFACE2,ROAD2,SLOPE2,SHOULDER2,SIGNALS2,BERMS2,REFUGEE_ISLAND2,pcd_barriers2,pcd_barrier_12,pcd_barrier_22 = highway_vertical_pumping(
                         SURFACE = SURFACE,
                         ROAD = ROAD,
                         SLOPE = SLOPE,
@@ -152,6 +153,10 @@ def main():
                         pcd_barriers = pcd_barriers,
                         pcd_barrier_1 = pcd_barrier_1,
                         pcd_barrier_2 = pcd_barrier_2)
+                    
+                    import pdb
+                    pdb.set_trace()
+                    
                 elif vertical_pumping and road_type == 'national':
                     SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2,SIGNALS = national_vertical_pumping(
                         SURFACE = SURFACE,
