@@ -230,7 +230,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
             reconstructed_surface=reconstructed_surface,
             road_buffer=road_buffer)
     else:
-        pcd_berms,pcd_refugee_island,pcd_shoulders,pcd_shoulder_2,pcd_road,pcd_DTM,curve_points = Road_Generator(
+        pcd_berm,pcd_refugee_island,pcd_shoulder,pcd_shoulder_2,pcd_road,pcd_DTM,curve_points = Road_Generator(
             height=road_height,
             road_type=road_type,
             reconstructed_surface=reconstructed_surface,
@@ -572,15 +572,15 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         slope_points = np.copy(copy_points)
 
     
-    
-    percentages_road_heights = np.linspace(1,0,len(slope_buffer))   
+    slope_bufferS = np.linspace(0.65,slope_buffer,500)
+    percentages_road_heights = np.linspace(1,0,len(slope_bufferS))   
     
     
     pcd_slope = o3d.geometry.PointCloud()
     
     
-    for p in range(len(slope_buffer)):  
-        slope_buffer_p = slope_buffer[p]
+    for p in range(len(slope_bufferS)):  
+        slope_buffer_p = slope_bufferS[p]
     
         
     
@@ -1077,7 +1077,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         rotation_matrix = SIGNAL.get_rotation_matrix_from_xyz((0,0,np.pi))
         SIGNAL.rotate(rotation_matrix,center=SIGNAL.get_center())
         Signals_list.append(SIGNAL)
-        SIGNAL_1 = create_rectangular_signal(posicion_final=location_signal_1,road_type=road_type)
+        SIGNAL_1 = create_rectangular_signal(final_position=location_signal_1,road_type=road_type)
         
         # We compute wether is at the left or the right lane:
         distance_to_pcd_barrier_1 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_1))
@@ -1165,7 +1165,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         location_signal_4 = berm_points[location_signal]
 
         # Signals and barriers facing one direction:
-        SIGNAL_1 = create_rectangular_signal(posicion_final=location_signal_1,road_type=road_type)
+        SIGNAL_1 = create_rectangular_signal(final_position=location_signal_1,road_type=road_type)
         
         # We compute wether is at the left or the right lane:
         distance_to_pcd_barrier_1 = np.mean(SIGNAL_1.compute_point_cloud_distance(pcd_barrier_1))
