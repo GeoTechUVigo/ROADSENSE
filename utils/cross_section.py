@@ -12,7 +12,7 @@ import copy
 
 
 
-def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2,nubes_modificadas=''):
+def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2,nubes_modificadas=''):
     """
     Function to generate some sort of ground elevation in the road-related parts of highway and mixed roads, i.e., the points closer to the axis road will have a different height than the ones that are further
 
@@ -23,11 +23,20 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     :param SIGNALS: Single point cloud cointaining all traffic signals as a o3d.geometry.PointCloud() object
     :param BERMS: Point cloud of the berm as a o3d.geometry.PointCloud() object
     :param REFUGEE_ISLAND: Point cloud of the road as a o3d.geometry.PointCloud() object
-    :param pcd_barriers: Single point cloud containing all barriers as a o3d.geometry.PointCloud() object
+    :param pcd_central_barrier: Single point cloud containing all barriers as a o3d.geometry.PointCloud() object
     :param pcd_barrier_1: Point cloud of the left barrier as a o3d.geometry.PointCloud() object
     :param pcd_barrier_2: Point cloud of the right barrier as a o3d.geometry.PointCloud() object
     :return: All input elements but with the new heights distribution
     """ 
+    
+    
+    #**********************************************************************
+    # DEBUG SECUNDARIO                             (donde estoy traduciendo)
+    #**********************************************************************        
+    if len(np.array(SHOULDER.points)) == 0:
+        import pdb
+        pdb.set_trace()    
+    
     
     # Caution! The following buffers are not the same that the ones specified
     # in the config file. They represent different realities.
@@ -354,7 +363,7 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     print('Modifying the cross section of the lane 1')
     
         
-    # new_height = maximum_height_siguiente_elemento
+    # new_height = maximum_height_next_elemento
       
     #--------------------------------------------------------------------------
     # For bigger inclinations:
@@ -391,9 +400,9 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     
     for p in range(len(road_bufferS)-1):  
         road_buffer = road_bufferS[p]
-        siguiente_road_buffer = road_bufferS[p+1]
+        next_road_buffer = road_bufferS[p+1]
     
-        indexes_lane_1_en_buffer_a = np.where(distances >= siguiente_road_buffer)[0]
+        indexes_lane_1_en_buffer_a = np.where(distances >= next_road_buffer)[0]
         indexes_lane_1_en_buffer_b = np.where(distances <= road_buffer)[0]
         
         common_indexes = np.intersect1d(indexes_lane_1_en_buffer_a,
@@ -789,11 +798,11 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     
     for p in range(len(road_bufferS)-1):  
         road_buffer = road_bufferS[p]
-        siguiente_road_buffer = road_bufferS[p+1]
+        next_road_buffer = road_bufferS[p+1]
     
     
     
-        indexes_lane_2_en_buffer_a = np.where(distances >= siguiente_road_buffer)[0]
+        indexes_lane_2_en_buffer_a = np.where(distances >= next_road_buffer)[0]
         indexes_lane_2_en_buffer_b = np.where(distances <= road_buffer)[0]
         
         common_indexes = np.intersect1d(indexes_lane_2_en_buffer_a,
@@ -1079,6 +1088,7 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
      
     # Now we are going to move vertically EVERYTHING to make sense:
             
+        
     # First barrier:
     new_location = np.array([pcd_barrier_1.get_center()[0],
                                 pcd_barrier_1.get_center()[1],
@@ -1092,24 +1102,31 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     pcd_barrier_2.translate(new_location,relative=False)
         
     # Central jersey barrier:
-    new_location = np.array([pcd_barriers.get_center()[0],
-                                pcd_barriers.get_center()[1],
-                                pcd_barriers.get_center()[2]+vertical_distance_refugee_island])
-    pcd_barriers.translate(new_location,relative=False)
+    new_location = np.array([pcd_central_barrier.get_center()[0],
+                                pcd_central_barrier.get_center()[1],
+                                pcd_central_barrier.get_center()[2]+vertical_distance_refugee_island])
+    pcd_central_barrier.translate(new_location,relative=False)
         
     # Big central signal:
-    new_location = np.array([SIGNALS.get_center()[0],
-                                SIGNALS.get_center()[1],
-                                SIGNALS.get_center()[2]+vertical_distance_refugee_island])
-    SIGNALS.translate(new_location,relative=False)
+    new_location = np.array([Signals_list[0].get_center()[0],
+                                Signals_list[0].get_center()[1],
+                                Signals_list[0].get_center()[2]+vertical_distance_refugee_island])
+    Signals_list[0].translate(new_location,relative=False)
     
-    # Lateral signals:
-    for i in range(1,len(SIGNALS)):
-        new_location = np.array([SIGNALS[i].get_center()[0],
-                                    SIGNALS[i].get_center()[1],
-                                    SIGNALS[i].get_center()[2]-vertical_distance_berms])
-        SIGNALS[i].translate(new_location,relative=False)
+    
         
+    # Lateral signals:
+    for i in range(1,len(Signals_list)):
+        new_location = np.array([Signals_list[i].get_center()[0],
+                                    Signals_list[i].get_center()[1],
+                                    Signals_list[i].get_center()[2]-vertical_distance_berms])
+        Signals_list[i].translate(new_location,relative=False)
+        
+    # We merge all signals in one single object:
+    SIGNALS = o3d.geometry.PointCloud()
+    for i in range(len(Signals_list)):
+        SIGNALS += Signals_list[i]
+    
     # DTM:
     new_location = np.array([SURFACE.get_center()[0],
                                 SURFACE.get_center()[1],
@@ -1143,19 +1160,19 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
             
         # 'altura_refugee_island' ya cogida al principio del script.
         
-        pcd_barrier_1_refugee_island = copy.deepcopy(pcd_barriers)
+        pcd_barrier_1_refugee_island = copy.deepcopy(pcd_central_barrier)
         
         new_location = [refugee_island.get_center()[0]-shoulder_buffer_orig,
                            refugee_island.get_center()[1], 
-                           pcd_barriers.get_center()[2]]
+                           pcd_central_barrier.get_center()[2]]
         pcd_barrier_1_refugee_island.translate(new_location,relative=False)
         
         
-        pcd_barrier_2_refugee_island = copy.deepcopy(pcd_barriers)
+        pcd_barrier_2_refugee_island = copy.deepcopy(pcd_central_barrier)
         
         new_location = [refugee_island.get_center()[0]+shoulder_buffer_orig,
                            refugee_island.get_center()[1],
-                           pcd_barriers.get_center()[2]]
+                           pcd_central_barrier.get_center()[2]]
         pcd_barrier_2_refugee_island.translate(new_location,relative=False)
         
         
@@ -1256,7 +1273,7 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     
         # Nubes artificiales por defecto
         print('Nubes artificiales por defecto')
-        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2,Lista_de_Senhales
+        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2,Lista_de_Senhales
         
     '''
         
@@ -1268,7 +1285,7 @@ def highway_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_I
     #------------------------------------------------------------------------------
 
 
-    return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barrier_1,pcd_barrier_2
+    return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2
 
 
 
@@ -1291,7 +1308,7 @@ def national_vertical_pumping(SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,pcd_barr
     :param SIGNALS: Single point cloud cointaining all traffic signals as a o3d.geometry.PointCloud() object
     :param BERMS: Point cloud of the berm as a o3d.geometry.PointCloud() object
     :param REFUGEE_ISLAND: Point cloud of the road as a o3d.geometry.PointCloud() object
-    :param pcd_barriers: Single point cloud containing all barriers as a o3d.geometry.PointCloud() object
+    :param pcd_central_barrier: Single point cloud containing all barriers as a o3d.geometry.PointCloud() object
     :param pcd_barrier_1: Point cloud of the left barrier as a o3d.geometry.PointCloud() object
     :param pcd_barrier_2: Point cloud of the right barrier as a o3d.geometry.PointCloud() object
     :return: All input elements but with the new heights distribution

@@ -680,7 +680,7 @@ def Road_Generator(height,road_type,reconstructed_surface,road_buffer):
         # o3d.visualization.draw(pcd_refugee_island+pcd_shoulder_2+pcd_shoulder_1+pcd_road_axis+pcd_DTM)
         #------------------------------------------------------------------------------
         
-        
+
         
         #------------------
         # Now we merge the shoulders into one single o3d.geometry.PointCloud() object:

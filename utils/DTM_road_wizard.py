@@ -209,9 +209,6 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     #============================= ROAD SIMULATION ============================
     
 
-    
-    
-    # if road_type == 'national':
     # Worst way to obtain random numbers:
     dice = np.random.randint(0,3)
     if dice == 0:
@@ -236,6 +233,12 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
             reconstructed_surface=reconstructed_surface,
             road_buffer=road_buffer)
 
+    '''
+    #**********************************************************************
+    # DEBUG SECUNDARIO                             (donde estoy traduciendo)
+    #**********************************************************************        
+    import pdb
+    pdb.set_trace()    
 
 
     road_points = np.array(pcd_road.points)
@@ -282,7 +285,9 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     # Uncomment to debug visualization:
     # o3d.visualization.draw(pcd_DTM+pcd_shoulder)
     # -------------------------------------------------------------------------
-
+    '''
+    
+    shoulder_points = np.array(pcd_shoulder.points)
 
     if road_type == 'national':
         
@@ -1003,12 +1008,12 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
         
         
         
-        pcd_barriers_zero = o3d.geometry.PointCloud()
+        pcd_central_barrier_zero = o3d.geometry.PointCloud()
         barrier_points_zero = np.copy(barrier_points)
         barrier_points_zero[:,2] = 0
-        pcd_barriers_zero.points = o3d.utility.Vector3dVector(barrier_points_zero)
+        pcd_central_barrier_zero.points = o3d.utility.Vector3dVector(barrier_points_zero)
 
-        distances = np.array(pcd_barriers_zero.compute_point_cloud_distance(pcd_curve),dtype=np.float64)
+        distances = np.array(pcd_central_barrier_zero.compute_point_cloud_distance(pcd_curve),dtype=np.float64)
         
         barrier_indexes = np.where(distances <= 0.1/2)[0]
         
@@ -1022,13 +1027,16 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
             elevated_points = barrier_points[barrier_indexes]
             barrier_points = np.vstack((barrier_points,elevated_points))
         
+        # Central barrier:
+        pcd_central_barrier = o3d.geometry.PointCloud()
+        pcd_central_barrier.points = o3d.utility.Vector3dVector(barrier_points)
+        pcd_central_barrier.paint_uniform_color([160/255.,160/255.,160/255.])
         
-        pcd_barriers = o3d.geometry.PointCloud()
-        pcd_barriers.points = o3d.utility.Vector3dVector(barrier_points)
-        pcd_barriers.paint_uniform_color([160/255.,160/255.,160/255.])
-        
-        
-        
+        #**********************************************************************
+        # DEBUG SECUNDARIO                             (donde estoy traduciendo)
+        #**********************************************************************        
+        # import pdb
+        # pdb.set_trace()        
     #-------------------------
     
     
@@ -1048,10 +1056,10 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     print('Generating traffic signals...')
     if road_type in ['highway','mixed']:
         
-        pcd_barrier_1 = copy.deepcopy(pcd_barriers)
-        pcd_barrier_1.translate(pcd_barriers.get_center()+np.array([2*road_buffer+0.5*shoulder_buffer,0,0]),relative=False)
-        pcd_barrier_2 = copy.deepcopy(pcd_barriers)
-        pcd_barrier_2.translate(pcd_barriers.get_center()+np.array([-2*road_buffer-0.5*shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_1 = copy.deepcopy(pcd_central_barrier)
+        pcd_barrier_1.translate(pcd_central_barrier.get_center()+np.array([2*road_buffer+0.5*shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_2 = copy.deepcopy(pcd_central_barrier)
+        pcd_barrier_2.translate(pcd_central_barrier.get_center()+np.array([-2*road_buffer-0.5*shoulder_buffer,0,0]),relative=False)
         
         
         berm_indexes = np.arange(0,len(berm_points))
@@ -1072,7 +1080,7 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
             
         SIGNAL,signal_center,center_first_pole,center_second_pole = create_elevated_signal(road_height=0,middle=True,visualization=False)
         
-        SIGNAL.translate(pcd_barriers.get_center())
+        SIGNAL.translate(pcd_central_barrier.get_center())
         SIGNAL.translate(SIGNAL.get_center()+np.array([-5,0,0]),relative=False)
         rotation_matrix = SIGNAL.get_rotation_matrix_from_xyz((0,0,np.pi))
         SIGNAL.rotate(rotation_matrix,center=SIGNAL.get_center())
@@ -1133,10 +1141,10 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     if road_type == 'national':
        
         
-        pcd_barrier_1 = copy.deepcopy(pcd_barriers)
-        pcd_barrier_1.translate(pcd_barriers.get_center()+np.array([road_buffer+shoulder_buffer,0,0]),relative=False)
-        pcd_barrier_2 = copy.deepcopy(pcd_barriers)
-        pcd_barrier_2.translate(pcd_barriers.get_center()+np.array([-road_buffer-shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_1 = copy.deepcopy(pcd_central_barrier)
+        pcd_barrier_1.translate(pcd_central_barrier.get_center()+np.array([road_buffer+shoulder_buffer,0,0]),relative=False)
+        pcd_barrier_2 = copy.deepcopy(pcd_central_barrier)
+        pcd_barrier_2.translate(pcd_central_barrier.get_center()+np.array([-road_buffer-shoulder_buffer,0,0]),relative=False)
        
         distance_to_pcd_barrier_1 = np.array(pcd_berm.compute_point_cloud_distance(pcd_barrier_1))
         distance_to_pcd_barrier_2 = np.array(pcd_berm.compute_point_cloud_distance(pcd_barrier_2))
@@ -1238,22 +1246,24 @@ def DTM_road_generator(road_type,ORIGINAL_SEGMENTS,scale,number_points_DTM,road_
     ROAD = pcd_road
     SLOPE = slope
     
-    for LL in range(len(Signals_list)):
-        SIGNALS = Signals_list[LL]
+    # SIGNALS = o3d.geometry.PointCloud()
+    # for LL in range(len(Signals_list)):
+    #     SIGNALS += Signals_list[LL]
     
     if road_type in ['highway','mixed','national']:
         SHOULDER = pcd_shoulder
         BERMS = pcd_berm
         
 
+
     if road_type in ['highway','mixed']:
         REFUGEE_ISLAND = pcd_refugee_island
-        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2
+        return SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2
     
     elif road_type == 'local':
-        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,pcd_barrier_1,pcd_barrier_2
+        return SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,pcd_barrier_1,pcd_barrier_2
     elif road_type == 'nacional':
-        return SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,pcd_barriers,pcd_barrier_1,pcd_barrier_2
+        return SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,BERMS,pcd_barrier_1,pcd_barrier_2
 
 
 

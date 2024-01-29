@@ -6,6 +6,8 @@ Created on Mon Sep 20 10:43:27 2021
 @author: lino
 """
 
+import traceback, sys, code
+
 def main():
 
     import os
@@ -21,6 +23,7 @@ def main():
     import copy
     import laspy
     import pathlib
+    import shutil
     
     # Relevant paths and files:
     MAIN_PATH = str(pathlib.Path(__file__).parent.resolve())
@@ -28,19 +31,21 @@ def main():
     config_file = 'forest_road_backbone.txt'
     UTILS_PATH = MAIN_PATH+'/utils'
     DATA_PATH = MAIN_PATH+'/data'
-    
+    OUTPUT_PATH = MAIN_PATH+'/output'
+
     import sys
     sys.path.insert(1, CONFIG_PATH)
     sys.path.insert(1, UTILS_PATH)
     sys.path.insert(1, DATA_PATH)
-    
+    sys.path.insert(1, OUTPUT_PATH)
+
     
     from reading_trees import read_segments
     from tree_wizard import tree_generator
     from DTM_road_wizard import DTM_road_generator
     from cross_section import highway_vertical_pumping, national_vertical_pumping
     
-    # from CREADOR_SUPERFICIES_ARTIFICIALES import creador_superficies
+    # from CREADOR_SURFACE_ARTIFICIALES import creador_SURFACE
 
 
 
@@ -68,7 +73,7 @@ def main():
     
     
     road = bool(config_file_lines[1][2])
-    specral_mode = bool(config_file_lines[2][2])
+    spectral_mode = bool(config_file_lines[2][2])
     road_type = config_file_lines[3][2]
     tree_path = config_file_lines[4][2]
     number_of_clouds = int(config_file_lines[5][2])
@@ -97,7 +102,7 @@ def main():
     
     # ================================ SIMULATION =================================
      
-    #contador == cloud_counter
+    #cloud_counter == cloud_counter
     cloud_counter = 0    
     for i in range(number_of_clouds):
         #========================== READING DATA ==============================
@@ -116,7 +121,7 @@ def main():
         if road:
             if road_type in ['highway','national']:
                 
-                SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
+                SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
                     road_type = road_type,
                     ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
                     scale = scale,
@@ -134,46 +139,47 @@ def main():
                     )
                 
                 # Cross section modification (if required on config file):
-                    
-                #**********************************************************************
-                # DEBUG PRINCIPAL                             (donde estoy traduciendo)
-                #**********************************************************************        
-                    
-                    
+                
                 if vertical_pumping and road_type == 'highway':
-                                        
-                    SURFACE2,ROAD2,SLOPE2,SHOULDER2,SIGNALS2,BERMS2,REFUGEE_ISLAND2,pcd_barriers2,pcd_barrier_12,pcd_barrier_22 = highway_vertical_pumping(
+                    # SURFACE2,ROAD2,SLOPE2,SHOULDER2,SIGNALS2,BERMS2,REFUGEE_ISLAND2,pcd_barrier_12,pcd_barrier_22 = highway_vertical_pumping(
+                    SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2 = highway_vertical_pumping(
                         SURFACE = SURFACE,
                         ROAD = ROAD,
                         SLOPE = SLOPE,
                         SHOULDER = SHOULDER,
-                        SIGNALS = SIGNALS,
+                        Signals_list = Signals_list,
                         BERMS = BERMS,
                         REFUGEE_ISLAND = REFUGEE_ISLAND,
-                        pcd_barriers = pcd_barriers,
+                        pcd_central_barrier = pcd_central_barrier,
                         pcd_barrier_1 = pcd_barrier_1,
                         pcd_barrier_2 = pcd_barrier_2)
                     
+                    #**********************************************************************
+                    # DEBUG PRINCIPAL                             (donde estoy traduciendo)
+                    #**********************************************************************        
+                    print('LINO! COMPARA LAS VARIABLES TIPO 2 CON LAS ANTERIORES')
                     import pdb
                     pdb.set_trace()
+
+                    
                     
                 elif vertical_pumping and road_type == 'national':
-                    SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_barriers,pcd_barrier_1,pcd_barrier_2,SIGNALS = national_vertical_pumping(
+                    SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2,SIGNALS = national_vertical_pumping(
                         SURFACE = SURFACE,
                         ROAD = ROAD,
                         SLOPE = SLOPE,
                         SHOULDER = SHOULDER,
-                        SIGNALS = SIGNALS,
+                        Signals_list = Signals_list,
                         BERMS = BERMS,
                         REFUGEE_ISLAND = REFUGEE_ISLAND,
-                        pcd_barriers = pcd_barriers,
+                        pcd_central_barrier = pcd_central_barrier,
                         pcd_barrier_1 = pcd_barrier_1,
                         pcd_barrier_2 = pcd_barrier_2)
                     
                                     
 
                 elif road_type == 'local':
-                    SURFACE,ROAD,SLOPE,SHOULDER,SIGNALS,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
+                    SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
                         road_type = road_type,
                         ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
                         scale = scale,
@@ -195,7 +201,7 @@ def main():
     
         else:
             # Point clouds with just DTM and trees:
-            SURFACE = creador_superficies(ORIGINAL_SEGMENTS,
+            SURFACE = creador_SURFACE(ORIGINAL_SEGMENTS,
                                           scale = scale,
                                           number_points_DTM = number_points_DTM)
                                           # montana=montana,
@@ -207,1090 +213,565 @@ def main():
             print('Finished simulation of DTM: %f s'%(end_surface-initial_instant))
             
             
-            #========================CREACIÓN ÁRBOLES ARTIFICIALES=========================
+        #========================CREACIÓN ÁRBOLES ARTIFICIALES=========================
+        
+        # Vamos a generar árboles nuevos basándonos en los que ya hemos leído por aHOUR:
             
-            # Vamos a generar árboles nuevos basándonos en los que ya hemos leído por ahora:
-                
-            SEGMENTOS_ARTIFICIALES = creador_arboles_artificiales(SEGMENTOS_ORIG,
-                                                                  Numero_transformaciones_por_arbol)
-            
-            
-            # print(SEGMENTOS_ARTIFICIALES_aux[0])
-            # print(SEGMENTOS_ARTIFICIALES[0])
-            
-            
-            fin_arboles_artificiales = time.time()
-            
-            print('Duración de la creación de árboles artificiales: %f s'%(fin_arboles_artificiales-fin_superficies))
+        SYNTHETIC_SEGMENTS = tree_generator(ORIGINAL_SEGMENTS,
+                                                number_of_transformations)
+        
+        
+        end_synthetic_trees = time.time()
+        
+        print('Creation of synthetic trees completed: %f s'%(end_synthetic_trees-end_surface))
     
-    #==============================FUSIÓN DE DATOS=================================
-    
-    # Ya tenemos los siguientes packs de datos:
-    # · SEGMENTOS_ORIG
-    # · SUPERFICIES
-    # · SEGMENTOS_ARTIFICIALES
-    
-    # Lo que nos queda es fusionarlos, es decir, colocar todos los árboles que po-
-    # damos en cada superficie. Para ello seguiremos la siguiente estrategia:
-    # 1) Seleccionamos una superficie.
-    # 2) Seleccionamos un árbol y lo colocamos en una posición arbitraria de la su-
-    #    perficie siempre y cuando no posea puntos fuera de la misma.
-    # 3) Seleccionamos otro árbol y le buscamos otra posición aleatoria. En esa po-
-    #    sición buscamos el árbol más próximo y hacemos 2 fits: uno a la copa de
-    #    cada árbol.
-    # 4) Si los dos fits no poseen puntos en común (no intersecan), damos por váli-
-    #    da la posición y saltamos al siguiente paso. En caso contrario, repetimos
-    #    el paso 3 hasta que no tenga problemas.
-    # 5) Si en una cantidad de iteraciones (llamémosla N_it) no se encuentra una
-    #    buena posición para el árbol, paramos y damos por terminada la nueva nube.
-    
-    # NOTA: AL FINAL DE TODO LAS NUBES DE PUNTOS ARTIFICIALES DEBE ESTAR CLASIFICA-
-    #       DAS, ES DECIR, VER CÓMO GUARDAR EN .laz Ó .las CADA PUNTO COMO:
-    #                  (x_punto,  y_punto,  z_punto,  clasificacion)
+        #==============================FUSIÓN DE DATOS=================================
+        
+        # Ya tenemos los siguientes packs de datos:
+        # · ORIGINAL_SEGMENTS
+        # · SURFACE
+        # · SYNTHETIC_SEGMENTS
+        
+        # Lo que nos queda es fusionarlos, es decir, colocar todos los árboles que po-
+        # damos en cada surface. Para ello seguiremos la siguiente estrategia:
+        # 1) Seleccionamos una surface.
+        # 2) Seleccionamos un árbol y lo colocamos en una posición arbitraria de la su-
+        #    perficie siempre y cuando no posea points fuera de la misma.
+        # 3) Seleccionamos otro árbol y le buscamos otra posición aleatoria. En esa po-
+        #    sición buscamos el árbol más próximo y hacemos 2 fits: uno a la copa de
+        #    cada árbol.
+        # 4) Si los dos fits no poseen points en común (no intersecan), damos por váli-
+        #    da la posición y saltamos al siguiente paso. En caso contrario, repetimos
+        #    el paso 3 hasta que no tenga problemas.
+        # 5) Si en una cantidad de iteraciones (llamémosla N_it) no se encuentra una
+        #    buena posición para el árbol, paramos y damos por terminada la nueva nube.
+        
+        # NOTA: AL FINAL DE TODO LAS NUBES DE points ARTIFICIALES DEBE ESTAR CLASIFICA-
+        #       DAS, ES DECIR, VER CÓMO GUARDAR EN .laz Ó .las CADA PUNTO COMO:
+        #                  (x_punto,  y_punto,  z_punto,  clasificacion)
     
     
-    # Esto es algo temporal:
-    # ejemplo = True
-    
-    
-    # if ejemplo:
     
         # Comportamiento que debe obedecer: asignar una label a cada punto tipo ár-
         # bol y guardar la nube final como .las o .laz.
         
-        # contador = 0
-        # for i in range(len(SUPERFICIES)):
-            print('Generando nube artificial %i/%i'%(i+1,Numero_superficies))
-            ARBOLES = []
-            NUBES_ARTIFICIALES = {}
-            superficie = SUPERFICIES[0]
-            ARBOLES.append([])
-            if carretera:
-                carretera_i = CARRETERAS[0]
-                talud_i = TALUDES[0]
-                if tipo_carretera != 'local':
-                    arcen_i = ARCENES[0]
-                    berma_i = BERMAS[0]
-                if tipo_carretera in ['autovia','autopista']:
-                    mediana_i = MEDIANAS[0]
-                # talud_2_i = TALUDES_2[i]
-                # senhal_i = SENHALES[i]
-        # superficie = SUPERFICIES[2] # Ejemplo
-        
-            
-        
-            puntos_superficie = np.array(superficie.points)
-            
-            if tipo_carretera in ['autovia','autopista']:
-                puntos_mediana = np.array(mediana_i.points)            
-        
-            SEGMENTOS_ARTIFICIALES_aux = copy.deepcopy(SEGMENTOS_ARTIFICIALES)
+        # cloud_counter = 0
+        # for i in range(len(SURFACE)):
+        print('Generating synthetic point cloud %i/%i'%(i+1,number_of_clouds))
+        TREES = []
+        SYNTHETIC_PCDS = {}
+        surface = SURFACE
+        TREES.append([])
+        if road:
+            road_i = ROAD
+            slope_i = SLOPE
+            if road_type != 'local':
+                shoulder_i = SHOULDER
+                berm_i = BERMS
+            if road_type in ['highway','mixed']:
+                refugee_island_i = REFUGEE_ISLAND
     
-            cuntudur = 0
-            for j in range(Numero_arboles_por_nube):
-                
-                if j < Numero_arboles_por_nube-Numero_arboles_mediana:
-                
-                    # Si ya hemos terminado de poner todos los árboles que teníamos
-                    # creados volvemos a empezar:
-                    if cuntudur == len(SEGMENTOS_ARTIFICIALES_aux):
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        # SEGMENTOS_ARTIFICIALES_aux.clear()                    
-                        
-                        
-                        SEGMENTOS_ARTIFICIALES_aux = copy.deepcopy(SEGMENTOS_ARTIFICIALES)
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        cuntudur = 0
+        surface_points = np.array(surface.points)
         
-                    posible_ubicacion = puntos_superficie[np.random.choice(len(puntos_superficie))]
-                    
-                    indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                    # Cojo un árbol al azar:
-                    arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    # arbol = SEGMENTOS_ARTIFICIALES[10] # Ejemplo
+        if road_type in ['highway','mixed']:
+            refugee_island_points = np.array(refugee_island_i.points)            
+    
+        SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
+
+        counter_aux = 0
+        for j in range(number_of_trees):
             
-                    while arbol[1] == True:
-                        indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                        arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    if arbol[1] == False:
-                        cuntudur += 1
-                        
-                    arbol = arbol[0]
-                    # Le ponemosla etiqueta True porque ya ha sido seleccionado:
-                    SEGMENTOS_ARTIFICIALES_aux[indice][1] = True
-                    SEGMENTOS_ARTIFICIALES[indice][1] = False
-                    # if cuntudur == 1:
-                    #     print(SEGMENTOS_ARTIFICIALES_aux[indice][1])
-                    #     print(SEGMENTOS_ARTIFICIALES[indice][1])
-                    arbol.translate((posible_ubicacion),relative=False)
-                    
-                    puntos_arbol = np.array(arbol.points)
-                    minima_altura = puntos_arbol.take(2,1).min()
-                    
-                    color_arbol = np.array(arbol.colors)
-                    
-                    desfase_vertical = posible_ubicacion-minima_altura
-                    
-                    puntos_arbol[:, 2] = puntos_arbol.take(2,1) + desfase_vertical[2]
-                    arbol = o3d.geometry.PointCloud()
-                    arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                    arbol.colors = o3d.utility.Vector3dVector(color_arbol)
-                    
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    # PARA LA PARTE DE INTENSIDADES ESTO ES IMPORTANTE!!!:           
-                    if calcular_normales:   
-                        arbol.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    
-                    
-                    if propuesta_IGN:
-                        # nube_SEGMENTOS_ARTIFICIALES = o3d.geometry.PointCloud()
-                        # for item in SEGMENTOS_ARTIFICIALES:
-                        #     nube_SEGMENTOS_ARTIFICIALES += item
-                        puntos_arbol = np.array(arbol.points)
-                        colores_arbol = np.array(arbol.colors)
-                        if carretera:
-                            # Para que la nube final sea de ~50.000 puntos necesitaría
-                            # que tooodos los árboles sumen unos ~5.000 puntos
-                            N_puntos_por_arbol = int(5000/Numero_arboles_por_nube)
-                        else:
-                            # Para que la nube final sea de ~50.000 puntos necesitaría
-                            # que tooodos los árboles sumen unos ~20.000 puntos
-                            N_puntos_por_arbol = int(30000/Numero_arboles_por_nube)
-                        try:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=False)
-                        except ValueError:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=True)
-                        puntos_arbol = puntos_arbol[indices_downsampling]
-                        colores_arbol = colores_arbol[indices_downsampling]
-                        arbol = o3d.geometry.PointCloud()
-                        arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                        arbol.colors = o3d.utility.Vector3dVector(colores_arbol)
-                    
-                    
-                    ARBOLES[-1].append(arbol)
-                    
-                    if contador == 0:
+            if j < number_of_trees-number_trees_refugee_island:
             
-                        nube_artificial = arbol+superficie
-                        contador += 1
-            
-                    else:
-                        nube_artificial += arbol
+                # If we finished placing all created trees we start again:
+                if counter_aux == len(SYNTHETIC_SEGMENTS_aux):
+                    SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
+                    counter_aux = 0
+    
+                possible_location = surface_points[np.random.choice(len(surface_points))]
                 
-                
-                
-                
-                
-                elif not propuesta_IGN and j >= Numero_arboles_por_nube-Numero_arboles_mediana and nubes_modificadas == 'Santarem': # Los últimos 20 árboles los meto en la mediana
-                    # Si ya hemos terminado de poner todos los árboles que teníamos
-                    # creados volvemos a empezar:
-                    if cuntudur == len(SEGMENTOS_ARTIFICIALES_aux):
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        # SEGMENTOS_ARTIFICIALES_aux.clear()
-                        SEGMENTOS_ARTIFICIALES_aux = copy.deepcopy(SEGMENTOS_ARTIFICIALES)
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        cuntudur = 0
+                index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                # Let's choose randomly a tree:
+                tree = SYNTHETIC_SEGMENTS_aux[index]
         
-                    posible_ubicacion = puntos_mediana[np.random.choice(len(puntos_mediana))]
+                while tree[1] == True:
+                    index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                    tree = SYNTHETIC_SEGMENTS_aux[index]
+                if tree[1] == False:
+                    counter_aux += 1
                     
-                    indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                    # Cojo un árbol al azar:
-                    arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    # arbol = SEGMENTOS_ARTIFICIALES[10] # Ejemplo
-            
-                    while arbol[1] == True:
-                        indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                        arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    if arbol[1] == False:
-                        cuntudur += 1
-                        
-                    arbol = arbol[0]
-                    # Le ponemosla etiqueta True porque ya ha sido seleccionado:
-                    SEGMENTOS_ARTIFICIALES_aux[indice][1] = True
-                    SEGMENTOS_ARTIFICIALES[indice][1] = False
-                    # if cuntudur == 1:
-                    #     print(SEGMENTOS_ARTIFICIALES_aux[indice][1])
-                    #     print(SEGMENTOS_ARTIFICIALES[indice][1])
-                    arbol.translate((posible_ubicacion),relative=False)
-                    
-                    puntos_arbol = np.array(arbol.points)
-                    minima_altura = puntos_arbol.take(2,1).min()
-                    
-                    color_arbol = np.array(arbol.colors)
-                    
-                    desfase_vertical = posible_ubicacion-minima_altura
-                    
-                    puntos_arbol[:, 2] = puntos_arbol.take(2,1) + desfase_vertical[2]
-                    arbol = o3d.geometry.PointCloud()
-                    arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                    arbol.colors = o3d.utility.Vector3dVector(color_arbol)
-                    
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    # PARA LA PARTE DE INTENSIDADES ESTO ES IMPORTANTE!!!:           
-                    if calcular_normales:   
-                        arbol.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    
-                    
-                    
-                    if propuesta_IGN:
-                        # nube_SEGMENTOS_ARTIFICIALES = o3d.geometry.PointCloud()
-                        # for item in SEGMENTOS_ARTIFICIALES:
-                        #     nube_SEGMENTOS_ARTIFICIALES += item
-                        puntos_arbol = np.array(arbol.points)
-                        colores_arbol = np.array(arbol.colors)
-                        # Para que la nube final sea de ~50.000 puntos necesitaría
-                        # que tooodos los árboles sumen unos ~5.000 puntos
-                        N_puntos_por_arbol = int(5000/Numero_arboles_por_nube)
-                        try:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=False)
-                        except ValueError:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=True)
-                        puntos_arbol = puntos_arbol[indices_downsampling]
-                        colores_arbol = colores_arbol[indices_downsampling]
-                        arbol = o3d.geometry.PointCloud()
-                        arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                        arbol.colors = o3d.utility.Vector3dVector(colores_arbol)
-                    
-                    
-                    
-                    ARBOLES[-1].append(arbol)
-                    
-                    if contador == 0:
-            
-                        nube_artificial = arbol+superficie
-                        contador += 1
-            
-                    else:
-                        nube_artificial += arbol
-    
-    
-    
-                elif j >= Numero_arboles_por_nube-20 and nubes_modificadas == 'defecto':            
-                    # Si ya hemos terminado de poner todos los árboles que teníamos
-                    # creados volvemos a empezar:
-                    if cuntudur == len(SEGMENTOS_ARTIFICIALES_aux):
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        # SEGMENTOS_ARTIFICIALES_aux.clear()
-                        SEGMENTOS_ARTIFICIALES_aux = copy.deepcopy(SEGMENTOS_ARTIFICIALES)
-                        # print(SEGMENTOS_ARTIFICIALES[0])
-                        cuntudur = 0
+                tree = tree[0]
+                # We add a label regarding "True" value since it was already
+                # selected:
+                SYNTHETIC_SEGMENTS_aux[index][1] = True
+                SYNTHETIC_SEGMENTS[index][1] = False
+                tree.translate((possible_location),relative=False)
+                
+                tree_points = np.array(tree.points)
+                minimum_height = tree_points.take(2,1).min()
+                
+                color_tree = np.array(tree.colors)
+                
+                vertical_shift = possible_location-minimum_height
+                
+                tree_points[:, 2] = tree_points.take(2,1) + vertical_shift[2]
+                tree = o3d.geometry.PointCloud()
+                tree.points = o3d.utility.Vector3dVector(tree_points)
+                tree.colors = o3d.utility.Vector3dVector(color_tree)
+                
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+                # THIS IS IMPORTANT FOR THE SPECTRAL PART!!!:           
+                if spectral_mode:   
+                    tree.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+          
+                TREES[-1].append(tree)
+                
+                if cloud_counter == 0:
         
-                    posible_ubicacion = puntos_superficie[np.random.choice(len(puntos_superficie))]
-                    
-                    indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                    # Cojo un árbol al azar:
-                    arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    # arbol = SEGMENTOS_ARTIFICIALES[10] # Ejemplo
+                    synthetic_cloud = tree+surface
+                    cloud_counter += 1
+        
+                else:
+                    synthetic_cloud += tree
             
-                    while arbol[1] == True:
-                        indice = np.random.choice(len(SEGMENTOS_ARTIFICIALES_aux))
-                        arbol = SEGMENTOS_ARTIFICIALES_aux[indice]
-                    if arbol[1] == False:
-                        cuntudur += 1
-                        
-                    arbol = arbol[0]
-                    # Le ponemosla etiqueta True porque ya ha sido seleccionado:
-                    SEGMENTOS_ARTIFICIALES_aux[indice][1] = True
-                    SEGMENTOS_ARTIFICIALES[indice][1] = False
-                    # if cuntudur == 1:
-                    #     print(SEGMENTOS_ARTIFICIALES_aux[indice][1])
-                    #     print(SEGMENTOS_ARTIFICIALES[indice][1])
-                    arbol.translate((posible_ubicacion),relative=False)
-                    
-                    puntos_arbol = np.array(arbol.points)
-                    minima_altura = puntos_arbol.take(2,1).min()
-                    
-                    color_arbol = np.array(arbol.colors)
-                    
-                    desfase_vertical = posible_ubicacion-minima_altura
-                    
-                    puntos_arbol[:, 2] = puntos_arbol.take(2,1) + desfase_vertical[2]
-                    arbol = o3d.geometry.PointCloud()
-                    arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                    arbol.colors = o3d.utility.Vector3dVector(color_arbol)
-                    
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    # PARA LA PARTE DE INTENSIDADES ESTO ES IMPORTANTE!!!:           
-                    if calcular_normales:   
-                        arbol.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
-                    #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
-                    
-                    
-                    if propuesta_IGN:
-                        # nube_SEGMENTOS_ARTIFICIALES = o3d.geometry.PointCloud()
-                        # for item in SEGMENTOS_ARTIFICIALES:
-                        #     nube_SEGMENTOS_ARTIFICIALES += item
-                        puntos_arbol = np.array(arbol.points)
-                        colores_arbol = np.array(arbol.colors)
-                        # Para que la nube final sea de ~50.000 puntos necesitaría
-                        # que tooodos los árboles sumen unos ~5.000 puntos
-                        N_puntos_por_arbol = int(5000/Numero_arboles_por_nube)
-                        try:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=False)
-                        except ValueError:
-                            indices_downsampling = np.random.choice(puntos_arbol.shape[0], N_puntos_por_arbol, replace=True)
-                        puntos_arbol = puntos_arbol[indices_downsampling]
-                        colores_arbol = colores_arbol[indices_downsampling]
-                        arbol = o3d.geometry.PointCloud()
-                        arbol.points = o3d.utility.Vector3dVector(puntos_arbol)
-                        arbol.colors = o3d.utility.Vector3dVector(colores_arbol)
-                    
-                    
-                    
-                    ARBOLES[-1].append(arbol)
-                    
-                    if contador == 0:
-            
-                        nube_artificial = arbol+superficie
-                        contador += 1
-            
-                    else:
-                        nube_artificial += arbol
-                
-                
-                
-                
-            # Metemos todos los árboles que coleccionamos en un sólo elemento:
-            arbol = o3d.geometry.PointCloud()
-            
-            for arbol_i in ARBOLES[-1]:
-                arbol += arbol_i
-            
-            # Cambiamos tooodos los elementos por uno sólo que serán todos los ár-
-            # boles:
-            ARBOLES = arbol
-            
-            if voxel_downsampling_size < 1000:
-                # Vamos a hacer voxel_downsampling:
-                ARBOLES = ARBOLES.voxel_down_sample(voxel_size=voxel_downsampling_size)
+            elif j >= number_of_trees-number_trees_refugee_island:
+                # We start again:
+                if counter_aux == len(SYNTHETIC_SEGMENTS_aux):
+                    SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
+                    counter_aux = 0
     
+                possible_location = refugee_island_points[np.random.choice(len(refugee_island_points))]
+                
+                index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                # Let's choose randomly a tree:
+                tree = SYNTHETIC_SEGMENTS_aux[index]
+        
+                while tree[1] == True:
+                    index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                    tree = SYNTHETIC_SEGMENTS_aux[index]
+                if tree[1] == False:
+                    counter_aux += 1
+                    
+                tree = tree[0]
+                # We add a label regarding "True" value since it was already
+                # selected:
+                SYNTHETIC_SEGMENTS_aux[index][1] = True
+                SYNTHETIC_SEGMENTS[index][1] = False
+                tree.translate((possible_location),relative=False)
+                
+                tree_points = np.array(tree.points)
+                minimum_height = tree_points.take(2,1).min()
+                
+                color_tree = np.array(tree.colors)
+                
+                vertical_shift = possible_location-minimum_height
+                
+                tree_points[:, 2] = tree_points.take(2,1) + vertical_shift[2]
+                tree = o3d.geometry.PointCloud()
+                tree.points = o3d.utility.Vector3dVector(tree_points)
+                tree.colors = o3d.utility.Vector3dVector(color_tree)
+                
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+                # THIS IS IMPORTANT FOR THE SPECTRAL PART!!!:           
+                if spectral_mode:   
+                    tree.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+                
+                
+                TREES[-1].append(tree)
+                
+                if cloud_counter == 0:
+        
+                    synthetic_cloud = tree+surface
+                    cloud_counter += 1
+        
+                else:
+                    synthetic_cloud += tree
+
+
+
+            elif j >= number_of_trees-20:            
+                # We start again:
+                if counter_aux == len(SYNTHETIC_SEGMENTS_aux):
+                    SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
+                    counter_aux = 0
+    
+                possible_location = surface_points[np.random.choice(len(surface_points))]
+                
+                index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                # Let's choose randomly a tree:
+                tree = SYNTHETIC_SEGMENTS_aux[index]
+
+                while tree[1] == True:
+                    index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
+                    tree = SYNTHETIC_SEGMENTS_aux[index]
+                if tree[1] == False:
+                    counter_aux += 1
+                    
+                tree = tree[0]
+                # We add a label regarding "True" value since it was already
+                # selected:
+                SYNTHETIC_SEGMENTS_aux[index][1] = True
+                SYNTHETIC_SEGMENTS[index][1] = False
+                tree.translate((possible_location),relative=False)
+                
+                tree_points = np.array(tree.points)
+                minimum_height = tree_points.take(2,1).min()
+                
+                color_tree = np.array(tree.colors)
+                
+                vertical_shift = possible_location-minimum_height
+                
+                tree_points[:, 2] = tree_points.take(2,1) + vertical_shift[2]
+                tree = o3d.geometry.PointCloud()
+                tree.points = o3d.utility.Vector3dVector(tree_points)
+                tree.colors = o3d.utility.Vector3dVector(color_tree)
+                
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+                # THIS IS IMPORTANT FOR THE SPECTRAL PART!!!:           
+                if spectral_mode:   
+                    tree.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=100, max_nn=1000))
+                #-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+                
+                
+                TREES[-1].append(tree)
+                
+                if cloud_counter == 0:
+        
+                    synthetic_cloud = tree+surface
+                    cloud_counter += 1
+        
+                else:
+                    synthetic_cloud += tree
             
-            if carretera:
-                # Descomentar para visualizaciones algo más bonitas (ralentiza un poco)
-                # nube_artificial.estimate_normals()
-                
-                todas_las_senhales = o3d.geometry.PointCloud()
-                
-                for LL in range(len(SENHALES)):
-                    todas_las_senhales += SENHALES[LL]
             
-            if carretera:
-                if tipo_carretera in ['autovia','autopista']:
-                    if nubes_modificadas == 'defecto':
-                        NUBES_ARTIFICIALES = nube_artificial + carretera_i + talud_i + arcen_i + berma_i + mediana_i + pcd_barrera + barrera_quitamiedos_1 + barrera_quitamiedos_2 + todas_las_senhales
-                    if nubes_modificadas == 'Santarem':
-                        NUBES_ARTIFICIALES = nube_artificial + carretera_i + talud_i + arcen_i + berma_i + mediana_i + barrera_quitamiedos_1 + barrera_quitamiedos_2 + barrera_quitamiedos_1_mediana + barrera_quitamiedos_2_mediana + todas_las_senhales
-                if tipo_carretera == 'nacional':
-                    NUBES_ARTIFICIALES = nube_artificial + carretera_i + talud_i + arcen_i + berma_i + barrera_quitamiedos_1 + barrera_quitamiedos_2 + todas_las_senhales
-                if tipo_carretera == 'local':
-                    NUBES_ARTIFICIALES = nube_artificial + carretera_i + talud_i + todas_las_senhales
+            
+        # We merge all the collected trees in one single element:
+        tree = o3d.geometry.PointCloud()
+        
+        for tree_i in TREES[-1]:
+            tree += tree_i
+        
+        TREES = tree
+        
+        # TODO:
+        # if voxel_downsampling_size < 1000:
+        #     # Vamos a hacer voxel_downsampling:
+        #     TREES = TREES.voxel_down_sample(voxel_size=voxel_downsampling_size)
+
+        
+        if road:
+            if road_type in ['highway','mixed']:
+                SYNTHETIC_PCDS = synthetic_cloud + road_i + slope_i + shoulder_i + berm_i + refugee_island_i + pcd_central_barrier + pcd_barrier_1 + pcd_barrier_2 + SIGNALS
+            if road_type == 'national':
+                SYNTHETIC_PCDS = synthetic_cloud + road_i + slope_i + shoulder_i + berm_i + pcd_barrier_1 + pcd_barrier_2 + SIGNALS
+            if road_type == 'local':
+                SYNTHETIC_PCDS = synthetic_cloud + road_i + slope_i + SIGNALS
+            
+            
+        else:
+            SYNTHETIC_PCDS = synthetic_cloud
+        cloud_counter = 0
+
+        final_time_cloud_generation = time.time()
+        
+        print('Syntehtic cloud generated in: %f s'%(final_time_cloud_generation-initial_instant))
+        # instante_inicial = time.time()
+    
+        
+        o3d.visualization.draw(SYNTHETIC_PCDS)
+    
                 
+        #=============================PCD STORE=================================
+        
+        os.chdir(OUTPUT_PATH)    
                 
+        current_date = time.localtime()
+        
+        
+        if i == 0:
+            folder = 'SYNTHETIC_PCDS_%i_%i_%i___%i_%i_%i'%(current_date[0],
+                                                            current_date[1],
+                                                            current_date[2],
+                                                            current_date[3],
+                                                            current_date[4],
+                                                            current_date[5])
+            
+            os.mkdir(folder)
+        os.chdir(folder)
+        
+        
+        # We will create a .txt file containing useful info:
+            
+        with open("dataset_info.txt", "w") as f:
+            f.writelines('DATASET INFORMATION:\n')
+            if not road:
+                f.writelines('Type of clouds: forest\n')
+                f.writelines('Number of classes: 2\n')
+                f.writelines('--- LABELS ---\n')
+                f.writelines('label    class\n')
+                f.writelines('0    tree\n')
+                f.writelines('1    DTM\n')
             else:
-                NUBES_ARTIFICIALES = nube_artificial
-            contador = 0
+                f.writelines('Type of clouds %s\n'%road_type)
+                if road_type == 'local':
+                    f.writelines('Number of classes: 5\n')
+                    f.writelines('--- LABELS ---\n')
+                    f.writelines('label    class\n')
+                    f.writelines('0    tree\n')
+                    f.writelines('1    DTM\n')
+                    f.writelines('2    road\n')
+                    f.writelines('3    slope\n')
+                    f.writelines('4    traffic signal\n')
+                if road_type == 'national':
+                    f.writelines('Number of classes: 8\n')
+                    f.writelines('--- LABELS ---\n')
+                    f.writelines('label    class\n')
+                    f.writelines('0    tree\n')
+                    f.writelines('1    DTM\n')
+                    f.writelines('2    road\n')
+                    f.writelines('3    slope\n')
+                    f.writelines('4    traffic signal\n')
+                    f.writelines('5    pcd_barrier_1\n')
+                    f.writelines('6    pcd_barrier_2\n')
+                    f.writelines('7    shoulder\n')
+                if road_type in ['highway','mixed']:
+                    f.writelines('Number of classes: 11\n')
+                    f.writelines('--- LABELS ---\n')
+                    f.writelines('label    class\n')
+                    f.writelines('0    tree\n')
+                    f.writelines('1    DTM\n')
+                    f.writelines('2    road\n')
+                    f.writelines('3    slope\n')
+                    f.writelines('4    traffic signal\n')
+                    f.writelines('5    pcd_barrier_1\n')
+                    f.writelines('6    pcd_barrier_2\n')
+                    f.writelines('7    shoulder\n')
+                    f.writelines('8    refugee island\n')
+                    f.writelines('9    jersey barrier\n')
+                    f.writelines('10    berm\n')
+        f.close()
     
-    # else:
-    #     print('Guardar clasificación en formato .las o .laz')
+        
+        
+        # Saving data:
+        
+        os.mkdir("synthetic_cloud_%i"%i)    
+        os.chdir("synthetic_cloud_%i"%i)
+        path_simulations = os.getcwd()
+        
+        pcd = SYNTHETIC_PCDS
+        cloud_points = np.array(pcd.points)
+        
+        o3d.io.write_point_cloud("synthetic_cloud_%i.pcd"%i, pcd)
     
-            instante_final = time.time()
+        # We also write a .las file:
+    
             
-            print('Duración creación de la nube: %f s'%(instante_final-instante_inicial))
-            # instante_inicial = time.time()
+        # 1. Create a new header
+        header = laspy.LasHeader(point_format=3, version="1.2")
+        # header.add_extra_dim(laspy.ExtraBytesParams(name="intensidad_faro", type=np.float32))
+        header.offsets = np.min(cloud_points, axis=0)
+        header.scales = np.array([0.1, 0.1, 0.1])
         
+        # 2. Create a Las
+        las = laspy.LasData(header)
+        
+        las.x = cloud_points[:, 0]
+        las.y = cloud_points[:, 1]
+        las.z = cloud_points[:, 2]
+        # las.intensidad_faro = intensidades_FARO_comunes
+        
+        las.write("synthetic_cloud_%i.las"%i)
+    
+        
+        '''
+        # OLD WAY TO WRITE A LAS FILE:
+        hdr = laspy.header.Header(point_format=2)
+        
+        outfile = laspy.file.File("synthetic_cloud_%i.las"%i, mode="w", header=hdr)
+        allx = np.array(pcd.points).take(0,1)
+        ally = np.array(pcd.points).take(1,1)
+        allz = np.array(pcd.points).take(2,1)
+        
+        xmin = np.floor(np.min(allx))
+        ymin = np.floor(np.min(ally))
+        zmin = np.floor(np.min(allz))
+        
+        outfile.header.offset = [xmin,ymin,zmin]
+        outfile.header.scale = [0.001,0.001,0.001]
+        
+        outfile.x = allx
+        outfile.y = ally
+        outfile.z = allz
+        
+        outfile.red = np.array(pcd.colors).take(0,1)*255
+        outfile.geen = np.array(pcd.colors).take(1,1)*255
+        outfile.blue = np.array(pcd.colors).take(2,1)*255
+        
+        outfile.close()
+        '''
+        
+
+        shutil.copyfile(CONFIG_PATH+'/'+config_file,
+                        path_simulations+'/'+config_file)
             
-            if visualizacion_por_nube:
-                o3d.visualization.draw(NUBES_ARTIFICIALES)
-        
-            # if downsampling_densidad != 0 and  voxel_downsampling_size > 0:
-                
-            #     o3d.visualization.draw(NUBES_ARTIFICIALES)
-            #     prueba = NUBES_ARTIFICIALES.voxel_down_sample(voxel_size=0.5)
-            #     o3d.visualization.draw(prueba)
-                
-            #     # Primero voy a downsamplear la vegetación y hacer que tenga la mis-
-            #     # ma densidad de puntos que el DTM:
-            #     puntos_arboles = np.array(ARBOLES.points)
-            #     colores_arboles = np.array(ARBOLES.colors)
-            #     indices_downsampling = np.random.choice(puntos_arboles.shape[0], len(np.array(superficie.points)), replace=False)
-            #     puntos_arboles = puntos_arboles[indices_downsampling]
-            #     colores_arboles = colores_arboles[indices_downsampling]
-            #     NUBES_ARTIFICIALES = superficie+ARBOLES
-                
-                
-            #     # Ahora downsampleamos la nube completa:
-            #     # import pdb
-            #     # pdb.set_trace()
-            #     Densidad_final = downsampling_densidad
-            #     puntos_nube = np.array(NUBES_ARTIFICIALES.points)
-            #     colores_nube = np.array(NUBES_ARTIFICIALES.colors)
-            #     # Vamos a hacer que la nube tenga una densidad de puntos concreta
-            #     Numero_puntos_nube = len(puntos_nube)
-            #     longitud_x_nube = np.abs(puntos_nube[:,0].max()-puntos_nube[:,0].min())
-            #     longitud_y_nube = np.abs(puntos_nube[:,1].max()-puntos_nube[:,1].min())
-            #     Superficie_inicial = longitud_x_nube * longitud_y_nube
-            #     Densidad_inicial = Numero_puntos_nube / Superficie_inicial
-            #     factor_downsampling = Densidad_inicial/Densidad_final
-                
-            #     # Ahora hacemos el downsampling:
-            #     indices_downsampling = np.random.choice(puntos_nube.shape[0], int(Numero_puntos_nube/factor_downsampling), replace=False)
-            #     puntos_nube_downsampleada = puntos_nube[indices_downsampling]
-            #     colores_nube_downsampleada = colores_nube[indices_downsampling]
-                
-            #     NUBES_ARTIFICIALES = o3d.geometry.PointCloud()
-            #     NUBES_ARTIFICIALES.points = o3d.utility.Vector3dVector(puntos_nube_downsampleada)
-            #     NUBES_ARTIFICIALES.colors = o3d.utility.Vector3dVector(colores_nube_downsampleada)
-                
-                # if i == 0:
-                #     visor.custom_draw_geometry_with_key_callback(NUBES_ARTIFICIALES)
+        with open("parametros.txt", "w") as f:
+            f.writelines('--------------------------------------------------------\n')
+            f.writelines('DATE: %i/%i/%i    HOUR: %i/%i/%i\n'%(time.gmtime()[2],time.gmtime()[1],time.gmtime()[0],time.gmtime()[3]+2,time.gmtime()[4],time.gmtime()[5]))
+            f.writelines('--------------------------------------------------------\n')
+            f.writelines('Time reading (s): %f\n'%(end_reading-initial_instant))
+            f.writelines('Time surface creation (s): %f\n'%(end_surface-end_reading))
+            f.writelines('Time tree generation (s): %f\n'%(end_synthetic_trees-end_surface))
+            f.writelines('Total time (s): %f\n'%(final_time_cloud_generation-initial_instant))
+            f.writelines('--------------------------------------------------------\n')
+            f.close()
+            
+        os.mkdir('numpy_arrays')
+        os.chdir('numpy_arrays')
                     
-            #=============================ALMACÉN DE NUBES=================================
+        surface_points = np.array(SURFACE.points)
+        
+        # labels_surface = np.full((1,len(surface_points)),0)[0]
+        with open("synthetic_cloud_%i_DTM.npy"%i, 'wb') as f:    
+            np.save(f, surface_points)
             
-            if not USB_conectado:
-                os.chdir(ruta_ejecutable)
-            else:
-                os.chdir(ruta_guardado_USB)    
+        tree_pointsS = np.array(TREES.points)
+        # labels_TREES = np.full((1,len(tree_pointsS)),1)[0]
+        with open("synthetic_cloud_%i_TREES.npy"%i, 'wb') as f:    
+            np.save(f, tree_pointsS)
+        
+        if road:
+            points_road = np.array(ROAD.points)
+            # labels_road = np.full((1,len(points_road)),2)[0]
+            with open("synthetic_cloud_%i_road.npy"%i, 'wb') as f:    
+                np.save(f, points_road)
+            points_slope = np.array(SLOPE.points)
+            # labels_slope = np.full((1,len(points_slope)),4)[0]
+            with open("synthetic_cloud_%i_slope.npy"%i, 'wb') as f:    
+                np.save(f, points_slope)
+            all_signals = np.array(SIGNALS.points)
+            # labels_slope = np.full((1,len(points_slope)),4)[0]
+            with open("synthetic_cloud_%i_senhales.npy"%i, 'wb') as f:    
+                np.save(f, all_signals)
             
+            
+            if road_type == 'local':
+                
+                cloud_points = np.concatenate((surface_points,tree_pointsS,
+                                              points_road,points_slope,
+                                              all_signals))
+        
+                with open("synthetic_cloud_%i.npy"%i, 'wb') as f:    
+                    np.save(f, cloud_points)
+            
+            
+            
+            
+            if road_type != 'local':
+                
+                points_pcd_barrier_1 = np.array(pcd_barrier_1.points)
+                with open("synthetic_cloud_%i_pcd_barrier_1.npy"%i, 'wb') as f:    
+                    np.save(f, points_pcd_barrier_1)
+                points_pcd_barrier_2 = np.array(pcd_barrier_2.points)
+                with open("synthetic_cloud_%i_pcd_barrier_2.npy"%i, 'wb') as f:    
+                    np.save(f, points_pcd_barrier_2)
+                points_shoulder = np.array(SHOULDER[0].points)
+                # labels_arcen = np.full((1,len(points_shoulder)),3)[0]
+                with open("synthetic_cloud_%i_arcen.npy"%i, 'wb') as f:    
+                    np.save(f, points_shoulder)
+                points_berm = np.array(berm_i.points)
+                with open("synthetic_cloud_%i_berm.npy"%i, 'wb') as f:    
+                    np.save(f, points_berm)
+                    
+            
+            
+            if road_type == 'national':
+                
+                cloud_points = np.concatenate((surface_points,tree_pointsS,
+                                              points_road,points_slope,
+                                              points_shoulder,points_pcd_barrier_1,
+                                              points_pcd_barrier_2,
+                                              all_signals))
+        
+                with open("synthetic_cloud_%i.npy"%i, 'wb') as f:    
+                    np.save(f, cloud_points)
+                
+            
+            if road_type in ['highway','mixed']:
+                points_central_barrier = np.array(pcd_central_barrier.points)
+                with open("synthetic_cloud_%i_jersey_barrier.npy"%i, 'wb') as f:    
+                    np.save(f, points_central_barrier)
+                refugee_island_points = np.array(refugee_island_i.points)
+                with open("synthetic_cloud_%i_refugee island.npy"%i, 'wb') as f:    
+                    np.save(f, refugee_island_points)
+            
+                cloud_points = np.concatenate((surface_points,tree_pointsS,
+                                              points_road,points_slope,
+                                              points_shoulder,points_pcd_barrier_1,
+                                              points_pcd_barrier_2,
+                                              points_central_barrier,all_signals,
+                                              refugee_island_points))
+        
+               
+                
+                with open("synthetic_cloud_%i.npy"%i, 'wb') as f:    
+                    np.save(f, cloud_points)
+        
+            # labels_nube = np.concatenate((labels_surface,labels_road,
+            #                               labels_arcen,labels_slope))
+    
+        
+
+        with open("synthetic_cloud_%i_TREES.npy"%i, 'wb') as f:    
+            np.save(f, tree_pointsS)
+            
+    
+    
+    
+        os.chdir(path_simulations)
+        os.mkdir('open3d_clouds')
+        os.chdir('open3d_clouds')
+        
+        # This is important for the spectral part:        
+        
+        o3d.io.write_point_cloud("surface.pcd", surface)
+        o3d.io.write_point_cloud("TREES.pcd", TREES)
+        if road:
+            o3d.io.write_point_cloud("slope_i.pcd", slope_i)
+            if road_type != 'local':
+                o3d.io.write_point_cloud("shoulder_i.pcd", shoulder_i)
+                o3d.io.write_point_cloud("berm_i.pcd", berm_i)
+            o3d.io.write_point_cloud("road_i.pcd", road_i)
+            if road_type in ['highway','mixed']:
+                o3d.io.write_point_cloud("refugee_island_i.pcd", refugee_island_i)
+                o3d.io.write_point_cloud("pcd_central_barrier.pcd", pcd_central_barrier)
             try:
-                os.mkdir('Nubes_artificiales_generadas')
-            except FileExistsError:
+                o3d.io.write_point_cloud("barrera.pcd", pcd_central_barrier)
+            except:
                 pass
-            
-            os.chdir('Nubes_artificiales_generadas')
-            
-            fecha_actual = time.localtime()
-            
-            
-            if i == 0:
-                # Genero una carpeta con esta nube artificial concreta:
-                if nubes_por_defecto:
-                    carpeta = 'Nubes_artificiales_defecto_%i_%i_%i___%i_%i_%i'%(fecha_actual[0],
-                                                                     fecha_actual[1],
-                                                                     fecha_actual[2],
-                                                                     fecha_actual[3],
-                                                                     fecha_actual[4],
-                                                                     fecha_actual[5])
-                else:
-                    carpeta = 'Nubes_artificiales_personalizadas_%i_%i_%i___%i_%i_%i'%(fecha_actual[0],
-                                                                     fecha_actual[1],
-                                                                     fecha_actual[2],
-                                                                     fecha_actual[3],
-                                                                     fecha_actual[4],
-                                                                     fecha_actual[5])
-                
-                os.mkdir(carpeta)
-            os.chdir(carpeta)
-            # print(carpeta)
-            
-            
-            if not propuesta_IGN:
-            
-                # Para temas de entrenamiento de mis redes voy a crear un pequeño .txt
-                # con algo de información útil:
-                    
-                with open("informacion_dataset.txt", "w") as f:
-                    f.writelines('INFORMACION DATASET:\n')
-                    if not carretera:
-                        f.writelines('Tipo de nubes: bosque\n')
-                        f.writelines('Numero de clases: 2\n')
-                        f.writelines('--- ETIQUETAS ---\n')
-                        f.writelines('label    clase\n')
-                        f.writelines('0    arbol\n')
-                        f.writelines('1    DTM\n')
-                    else:
-                        f.writelines('Tipo de nubes: %s\n'%tipo_carretera)
-                        if tipo_carretera == 'local':
-                            f.writelines('Numero de clases: 5\n')
-                            f.writelines('--- ETIQUETAS ---\n')
-                            f.writelines('label    clase\n')
-                            f.writelines('0    arbol\n')
-                            f.writelines('1    DTM\n')
-                            f.writelines('2    carretera\n')
-                            f.writelines('3    talud\n')
-                            f.writelines('4    señal de tráfico\n')
-                        if tipo_carretera == 'nacional':
-                            f.writelines('Numero de clases: 8\n')
-                            f.writelines('--- ETIQUETAS ---\n')
-                            f.writelines('label    clase\n')
-                            f.writelines('0    arbol\n')
-                            f.writelines('1    DTM\n')
-                            f.writelines('2    carretera\n')
-                            f.writelines('3    talud\n')
-                            f.writelines('4    señal de tráfico\n')
-                            f.writelines('5    barrera_quitamiedos_1\n')
-                            f.writelines('6    barrera_quitamiedos_2\n')
-                            f.writelines('7    arcén\n')
-                        if tipo_carretera in ['autovia','autopista']:
-                            if nubes_modificadas == 'Santarem':
-                                f.writelines('Numero de clases: 8\n')
-                                f.writelines('--- ETIQUETAS ---\n')
-                                f.writelines('label    clase\n')
-                                f.writelines('0    arbol\n')
-                                f.writelines('1    DTM\n')
-                                # f.writelines('2    carretera\n')
-                                f.writelines('2    talud\n')
-                                f.writelines('3    señal de tráfico\n')
-                                f.writelines('4    barrera_quitamiedos\n')
-                                # f.writelines('6    arcén\n')
-                                f.writelines('5    mediana\n')
-                                f.writelines('6    berma\n')
-                                f.writelines('7    puntos_via_circulacion\n')
-                            
-                            if nubes_modificadas == 'defecto':
-                                
-                                f.writelines('Numero de clases: 11\n')
-                                f.writelines('--- ETIQUETAS ---\n')
-                                f.writelines('label    clase\n')
-                                f.writelines('0    arbol\n')
-                                f.writelines('1    DTM\n')
-                                f.writelines('2    carretera\n')
-                                f.writelines('3    talud\n')
-                                f.writelines('4    señal de tráfico\n')
-                                f.writelines('5    barrera_quitamiedos_1\n')
-                                f.writelines('6    barrera_quitamiedos_2\n')
-                                f.writelines('7    arcén\n')
-                                f.writelines('8    mediana\n')
-                                f.writelines('9    barrera_jersey\n')
-                                f.writelines('10    berma\n')
-                f.close()
-            
-            else:
-                
-            # Para temas de entrenamiento de mis redes voy a crear un pequeño .txt
-            # con algo de información útil:
-                
-                with open("informacion_dataset.txt", "w") as f:
-                    f.writelines('INFORMACION DATASET:\n')
-                    if not carretera:
-                        f.writelines('Tipo de nubes: bosque\n')
-                        f.writelines('Numero de clases: 2\n')
-                        f.writelines('--- ETIQUETAS ---\n')
-                        f.writelines('label    clase\n')
-                        f.writelines('0    arbol\n')
-                        f.writelines('1    DTM\n')
-                    else:
-                        f.writelines('Tipo de nubes: %s\n'%tipo_carretera)
-                        if tipo_carretera == 'local':
-                            f.writelines('Numero de clases: 4\n')
-                            f.writelines('--- ETIQUETAS ---\n')
-                            f.writelines('label    clase\n')
-                            f.writelines('0    arbol\n')
-                            f.writelines('1    DTM\n')
-                            f.writelines('2    infraestructura de transporte\n')
-                            f.writelines('3    talud\n')
-                        if tipo_carretera == 'nacional':
-                            f.writelines('Numero de clases: 4\n')
-                            f.writelines('--- ETIQUETAS ---\n')
-                            f.writelines('label    clase\n')
-                            f.writelines('0    arbol\n')
-                            f.writelines('1    DTM\n')
-                            f.writelines('2    infraestructura de transporte\n')
-                            f.writelines('3    talud\n')
-                        if tipo_carretera in ['autovia','autopista']:
-                            if nubes_modificadas == 'Santarem':
-                                f.writelines('Numero de clases: 4\n')
-                                f.writelines('--- ETIQUETAS ---\n')
-                                f.writelines('label    clase\n')
-                                f.writelines('0    arbol\n')
-                                f.writelines('1    DTM\n')
-                                f.writelines('2    infraestructura de transporte\n')
-                                f.writelines('3    talud\n')
-                            
-                            if nubes_modificadas == 'defecto':
-                                
-                                f.writelines('Numero de clases: 4\n')
-                                f.writelines('--- ETIQUETAS ---\n')
-                                f.writelines('label    clase\n')
-                                f.writelines('0    arbol\n')
-                                f.writelines('1    DTM\n')
-                                f.writelines('2    infraestructura de transporte\n')
-                                f.writelines('3    talud\n')
-                f.close()
-            
-            
-            # OJO!!! Luego hay que mover manualmente las nubes que queramos a las 
-            # carpetas TEST y TRAIN (las cuales se deben crear, manualmente tb).
-            
-            
-            # Vamos a guardar las nubes generadas:
-            
-            os.mkdir("Nube_artificial_%i"%i)    
-            os.chdir("Nube_artificial_%i"%i)
-            ruta_simulaciones = os.getcwd()
-            
-            pcd = NUBES_ARTIFICIALES
-            puntos_nube = np.array(pcd.points)
-            
-            o3d.io.write_point_cloud("Nube_artificial_%i.pcd"%i, pcd)
-        
-            # Escribimos un .las también:
-        
-                
-            # 1. Create a new header
-            header = laspy.LasHeader(point_format=3, version="1.2")
-            # header.add_extra_dim(laspy.ExtraBytesParams(name="intensidad_faro", type=np.float32))
-            header.offsets = np.min(puntos_nube, axis=0)
-            header.scales = np.array([0.1, 0.1, 0.1])
-            
-            # 2. Create a Las
-            las = laspy.LasData(header)
-            
-            las.x = puntos_nube[:, 0]
-            las.y = puntos_nube[:, 1]
-            las.z = puntos_nube[:, 2]
-            # las.intensidad_faro = intensidades_FARO_comunes
-            
-            las.write("Nube_artificial_%i.las"%i)
+            try:
+                o3d.io.write_point_cloud("pcd_barrier_1.pcd", pcd_barrier_1)
+                o3d.io.write_point_cloud("pcd_barrier_2.pcd", pcd_barrier_2)
+            except:
+                pass
+            try:
+                for sss in range(len(Signals_list)):
+                    o3d.io.write_point_cloud("signal_%i.pcd"%sss, Signals_list[sss])
+                o3d.io.write_point_cloud("all_signals.pcd", all_signals)
+            except:
+                pass
         
             
-            '''
-            # FORMA ANTIGUA DE ESCRIBIR .las CON LASPY:
-            hdr = laspy.header.Header(point_format=2)
-            
-            outfile = laspy.file.File("Nube_artificial_%i.las"%i, mode="w", header=hdr)
-            allx = np.array(pcd.points).take(0,1)
-            ally = np.array(pcd.points).take(1,1)
-            allz = np.array(pcd.points).take(2,1)
-            
-            xmin = np.floor(np.min(allx))
-            ymin = np.floor(np.min(ally))
-            zmin = np.floor(np.min(allz))
-            
-            outfile.header.offset = [xmin,ymin,zmin]
-            outfile.header.scale = [0.001,0.001,0.001]
-            
-            outfile.x = allx
-            outfile.y = ally
-            outfile.z = allz
-            
-            outfile.red = np.array(pcd.colors).take(0,1)*255
-            outfile.geen = np.array(pcd.colors).take(1,1)*255
-            outfile.blue = np.array(pcd.colors).take(2,1)*255
-            
-            outfile.close()
-            '''
             
             
-            # Finalmente, vamos a guardar un .txt con los parámetros usados en esta genera-
-            # ción:
-                
-            with open("parametros.txt", "w") as f:
-                f.writelines('--------------------------------------------------------\n')
-                f.writelines('FECHA: %i/%i/%i    HORA: %i/%i/%i\n'%(time.gmtime()[2],time.gmtime()[1],time.gmtime()[0],time.gmtime()[3]+2,time.gmtime()[4],time.gmtime()[5]))
-                f.writelines('--------------------------------------------------------\n')
-                f.writelines('Tiempo_lectura (s): %f\n'%(fin_lectura-instante_inicial))
-                f.writelines('Tiempo creación superficies (s): %f\n'%(fin_superficies-fin_lectura))
-                f.writelines('Tiempo creación árboles artificiales (s): %f\n'%(fin_arboles_artificiales-fin_superficies))
-                f.writelines('Tiempo total (s): %f\n'%(instante_final-instante_inicial))
-                f.writelines('--------------------------------------------------------\n')
-                f.writelines('Parámetros empleados en esta generación:\n')
-                f.writelines('Ruta nubes de árboles originales: %s\n'%(ruta_segmentaciones_cilindricas))
-                f.writelines('Numero_superficies: %i\n'%(Numero_superficies))
-                f.writelines('factor_repeticion: %f\n'%(factor_repeticion))
-                f.writelines('Numero_puntos_superficie: %i\n'%(Numero_puntos_superficie))
-                f.writelines('Numero_transformaciones_por_arbol: %f\n'%(Numero_transformaciones_por_arbol))
-                f.writelines('Numero_arboles_por_nube: %i\n'%(Numero_arboles_por_nube))
-                f.writelines('Bosque de montaña grande: %s\n'%(montana))
-                f.writelines('Carretera: %s\n'%(carretera))
-                f.writelines('--------------------------------------------------------\n')
-                f.writelines('CÁLCULO DE INTENSIDAD\n')
-                if calcular_intensidades:
-                    f.writelines('Sí se calcula intensidad\n')
-                else:
-                    f.writelines('No se calcula intensidad\n')
-                f.close()
+        print('----------Jumping to next cloud-----------')
             
-            # COUSIÑAS A MAIORES:
-            # 1) Podemos generar maleza/arbustos también!
-            # 2) En zonas de pendiente abrupta no poner árboles.
-            # 3) En zonas de pendiente moderada hacer que los árboles crezcan en la di-
-            #    rección perpendicular.
-            
-            
-            
-            
-            
-            # De cara a meter estas nubes en el GAN cunde guardar cada una como un único
-            # array en el que tengamos algo así: [x,y,z,clasificación].
-            # Vamos a intentarlo:
-                
-            # Tenemos lo siguiente:
-            
-            # · SUPERFICIES (diccionario con los puntos tipo suelo/sin clasificación)
-            # · ARBOLES (lista con los puntos tipo árbol en cada nube)
-            # · CARRETERAS (diccionario con todos los puntos tipo carretera en cada nube)
-            # · ARCENES (diccionario con todos los puntos tipo arcén en cada nube)
-            # · TALUDES (diccionario con todos los puntos tipo talud en cada nube)
-            
-            # OJO! Las señales no las voy a incluir aquí porque aún tengo que mejorar todo
-            # lo relativo a ellas.
-            
-            # Vamos a establecer las siguientes etiquetas/label para cada punto:
-            
-            # · Puntos en SUPERFICIES ---> label = 0
-            # · Puntos en ARBOLES ---> label = 1
-            # · Puntos en CARRETERAS ---> label = 2
-            # · Puntos en ARCENES ---> label = 3
-            # · Puntos en TALUDES ---> label = 4
-            
-            
-            # if not arboles_por_separado:
-            
-            #     puntos_superficie = np.array(SUPERFICIES[0].points)
-            #     labels_superficie = np.full((1,len(puntos_superficie)),0)[0]
-                
-            #     puntos_arboles = np.array(ARBOLES.points)
-            #     labels_arboles = np.full((1,len(puntos_arboles)),1)[0]
-                
-            #     puntos_carretera = np.array(CARRETERAS[0].points)
-            #     labels_carretera = np.full((1,len(puntos_carretera)),2)[0]
-                
-            #     puntos_arcen = np.array(ARCENES[0].points)
-            #     labels_arcen = np.full((1,len(puntos_arcen)),3)[0]
-                
-            #     puntos_talud = np.array(TALUDES[0].points)
-            #     labels_talud = np.full((1,len(puntos_talud)),4)[0]
-                
-            #     puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-            #                                   puntos_carretera,puntos_arcen,puntos_talud))
-            
-            #     labels_nube = np.concatenate((labels_superficie,labels_arboles,
-            #                              labels_carretera,labels_arcen,labels_talud))
-            
-            
-            #     with open("Nube_artificial_%i.npy"%i, 'wb') as f:    
-            #         np.save(f, puntos_nube)
-            #         np.save(f,labels_nube)
-                    
-            #         # Para cargar esos arrays haríamos así:
-                        
-            #         # with open("Nube_artificial_%i.npy"%s, 'rb') as f:
-            #         #     puntos_nube = np.load(f)
-            #         #     labels_nube = np.load(f)
-            
-            
-            
-            # else:
-                
-                
-                
-                
-                
-                
-            os.mkdir('numpy_arrays')
-            os.chdir('numpy_arrays')
-                
-                
-            # Guardo los puntos de cada clase como arrays de numpy:
-            
-            puntos_superficie = np.array(SUPERFICIES[0].points)
-            colores_superficie = np.array(SUPERFICIES[0].colors)
-            
-            # labels_superficie = np.full((1,len(puntos_superficie)),0)[0]
-            with open("Nube_artificial_%i_DTM.npy"%i, 'wb') as f:    
-                np.save(f, puntos_superficie)
-                
-            puntos_arboles = np.array(ARBOLES.points)
-            colores_arboles = np.array(ARBOLES.colors)
-            # labels_arboles = np.full((1,len(puntos_arboles)),1)[0]
-            with open("Nube_artificial_%i_arboles.npy"%i, 'wb') as f:    
-                np.save(f, puntos_arboles)
-            
-            if not propuesta_IGN:
-                if carretera:
-                
-                    puntos_carretera = np.array(CARRETERAS[0].points)
-                    # labels_carretera = np.full((1,len(puntos_carretera)),2)[0]
-                    with open("Nube_artificial_%i_carretera.npy"%i, 'wb') as f:    
-                        np.save(f, puntos_carretera)
-                    puntos_talud = np.array(TALUDES[0].points)
-                    # labels_talud = np.full((1,len(puntos_talud)),4)[0]
-                    with open("Nube_artificial_%i_talud.npy"%i, 'wb') as f:    
-                        np.save(f, puntos_talud)
-                    todas_las_senhales = np.array(todas_las_senhales.points)
-                    # labels_talud = np.full((1,len(puntos_talud)),4)[0]
-                    with open("Nube_artificial_%i_senhales.npy"%i, 'wb') as f:    
-                        np.save(f, todas_las_senhales)
-                    
-                    
-                    if tipo_carretera == 'local':
-                        
-                        puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-                                                      puntos_carretera,puntos_talud,
-                                                      todas_las_senhales))
-                
-                        with open("Nube_artificial_%i.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_nube)
-                    
-                    
-                    
-                    
-                    if tipo_carretera != 'local':
-                        
-                        puntos_barrera_quitamiedos_1 = np.array(barrera_quitamiedos_1.points)
-                        with open("Nube_artificial_%i_barrera_quitamiedos_1.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_barrera_quitamiedos_1)
-                        puntos_barrera_quitamiedos_2 = np.array(barrera_quitamiedos_2.points)
-                        with open("Nube_artificial_%i_barrera_quitamiedos_2.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_barrera_quitamiedos_2)
-                        puntos_arcen = np.array(ARCENES[0].points)
-                        # labels_arcen = np.full((1,len(puntos_arcen)),3)[0]
-                        with open("Nube_artificial_%i_arcen.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_arcen)
-                        puntos_berma = np.array(berma_i.points)
-                        with open("Nube_artificial_%i_berma.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_berma)
-                            
-                    
-                    
-                    if tipo_carretera == 'nacional':
-                        
-                        puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-                                                      puntos_carretera,puntos_talud,
-                                                      puntos_arcen,puntos_barrera_quitamiedos_1,
-                                                      puntos_barrera_quitamiedos_2,
-                                                      todas_las_senhales))
-                
-                        with open("Nube_artificial_%i.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_nube)
-                        
-                    
-                    if tipo_carretera in ['autovia','autopista']:
-                        if nubes_modificadas == 'defecto':
-                            puntos_barrera = np.array(pcd_barrera.points)
-                            with open("Nube_artificial_%i_barrera_jersey.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_barrera)
-                            puntos_mediana = np.array(mediana_i.points)
-                            with open("Nube_artificial_%i_mediana.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_mediana)
-                        
-                            puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-                                                          puntos_carretera,puntos_talud,
-                                                          puntos_arcen,puntos_barrera_quitamiedos_1,
-                                                          puntos_barrera_quitamiedos_2,
-                                                          puntos_barrera,todas_las_senhales,
-                                                          puntos_mediana))
-                
-                        if nubes_modificadas == 'Santarem':
-                            puntos_mediana = np.array(mediana_i.points)
-                            with open("Nube_artificial_%i_mediana.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_mediana)
-                        
-                            puntos_barrera_quitamiedos_1_mediana = np.array(barrera_quitamiedos_1_mediana.points)
-                            with open("Nube_artificial_%i_barrera_quitamiedos_1_mediana.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_barrera_quitamiedos_1_mediana)
-                            
-                            puntos_barrera_quitamiedos_2_mediana = np.array(barrera_quitamiedos_2_mediana.points)
-                            with open("Nube_artificial_%i_barrera_quitamiedos_2_mediana.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_barrera_quitamiedos_2_mediana)
-        
-        
-                            todos_los_quitamiedos = barrera_quitamiedos_1+barrera_quitamiedos_1_mediana+barrera_quitamiedos_2+barrera_quitamiedos_2_mediana
-                            puntos_todos_los_quitamiedos = np.array(todos_los_quitamiedos.points)
-                            with open("Nube_artificial_%i_barreras_quitamiedos.npy"%i, 'wb') as f:    
-                                np.save(f, puntos_todos_los_quitamiedos)
-        
-        
-                            puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-                                                          puntos_carretera,puntos_talud,
-                                                          puntos_arcen,puntos_barrera_quitamiedos_1,
-                                                          puntos_barrera_quitamiedos_2,
-                                                          puntos_barrera_quitamiedos_1_mediana,
-                                                          puntos_barrera_quitamiedos_2_mediana,
-                                                          todas_las_senhales,puntos_mediana))
-                       
-                        
-                        with open("Nube_artificial_%i.npy"%i, 'wb') as f:    
-                            np.save(f, puntos_nube)
-                
-                    # labels_nube = np.concatenate((labels_superficie,labels_carretera,
-                    #                               labels_arcen,labels_talud))
-            
-            else:
-                
-                # Sólo guardamos la infraestructura de transporte y los taludes:
-                if carretera:
-                
-                
-                    puntos_carretera = np.array(CARRETERAS[0].points)
-                    colores_carretera = np.array(CARRETERAS[0].colors)
-                    
-                    puntos_talud = np.array(TALUDES[0].points)
-                    colores_talud = np.array(TALUDES[0].colors)
-                    
-                    nube_copia_senhales = copy.deepcopy(todas_las_senhales)
-                    todas_las_senhales = np.array(nube_copia_senhales.points)
-                    colores_todas_las_senhales = np.array(nube_copia_senhales.colors)
-    
-    
-                    puntos_infraestructura_transporte = np.vstack((puntos_carretera,
-                                                                   todas_las_senhales))
-                    
-                    colores_infraestructura_transporte = np.vstack((colores_carretera,
-                                                                   colores_todas_las_senhales))
-                    
-                    if tipo_carretera != 'local':
-                        
-                        puntos_barrera_quitamiedos_1 = np.array(barrera_quitamiedos_1.points)
-                        colores_barrera_quitamiedos_1 = np.array(barrera_quitamiedos_1.colors)
-    
-                        puntos_barrera_quitamiedos_2 = np.array(barrera_quitamiedos_2.points)
-                        colores_barrera_quitamiedos_2 = np.array(barrera_quitamiedos_2.colors)
-    
-                        puntos_arcen = np.array(ARCENES[0].points)
-                        colores_arcen = np.array(ARCENES[0].colors)
-    
-                        
-                        puntos_berma = np.array(berma_i.points)
-                        colores_berma = np.array(berma_i.colors)
-                            
-                        puntos_infraestructura_transporte = np.vstack((puntos_infraestructura_transporte,
-                                                                       puntos_barrera_quitamiedos_1,
-                                                                       puntos_barrera_quitamiedos_2,
-                                                                       puntos_arcen,
-                                                                       puntos_berma))
-                        colores_infraestructura_transporte = np.vstack((colores_infraestructura_transporte,
-                                                                       colores_barrera_quitamiedos_1,
-                                                                       colores_barrera_quitamiedos_2,
-                                                                       colores_arcen,
-                                                                       colores_berma))
-    
-                    
-                    
-                    if tipo_carretera in ['autovia','autopista']:
-                        if nubes_modificadas == 'defecto':
-                            puntos_barrera = np.array(pcd_barrera.points)
-                            colores_barrera = np.array(pcd_barrera.colors)
-    
-                            puntos_mediana = np.array(mediana_i.points)
-                            colores_mediana = np.array(mediana_i.colors)
-                            
-                            puntos_infraestructura_transporte = np.vstack((puntos_infraestructura_transporte,
-                                                                           puntos_barrera,
-                                                                           puntos_mediana))
-                            
-                            colores_infraestructura_transporte = np.vstack((colores_infraestructura_transporte,
-                                                                           colores_barrera,
-                                                                           colores_mediana))
-    
-                        if nubes_modificadas == 'Santarem':
-                            puntos_mediana = np.array(mediana_i.points)                    
-                            puntos_barrera_quitamiedos_1_mediana = np.array(barrera_quitamiedos_1_mediana.points)
-                            puntos_barrera_quitamiedos_2_mediana = np.array(barrera_quitamiedos_2_mediana.points)    
-                            todos_los_quitamiedos = barrera_quitamiedos_1+barrera_quitamiedos_1_mediana+barrera_quitamiedos_2+barrera_quitamiedos_2_mediana
-                            puntos_todos_los_quitamiedos = np.array(todos_los_quitamiedos.points)
-                            
-                            puntos_infraestructura_transporte = np.vstack((puntos_infraestructura_transporte,
-                                                                           puntos_mediana,
-                                                                           puntos_todos_los_quitamiedos))
-    
-                            colores_mediana = np.array(mediana_i.colors)                    
-                            colores_barrera_quitamiedos_1_mediana = np.array(barrera_quitamiedos_1_mediana.colors)
-                            colores_barrera_quitamiedos_2_mediana = np.array(barrera_quitamiedos_2_mediana.colors)    
-                            todos_los_quitamiedos = barrera_quitamiedos_1+barrera_quitamiedos_1_mediana+barrera_quitamiedos_2+barrera_quitamiedos_2_mediana
-                            colores_todos_los_quitamiedos = np.array(todos_los_quitamiedos.colors)
-                            
-                            colores_infraestructura_transporte = np.vstack((colores_infraestructura_transporte,
-                                                                           colores_mediana,
-                                                                           colores_todos_los_quitamiedos))
-                        
-                        
-                    
-                    with open("Nube_artificial_%i_infraestructura_transporte.npy"%i, 'wb') as f:    
-                        np.save(f, puntos_nube)
-                        
-                        
-                    puntos_nube = np.concatenate((puntos_superficie,puntos_arboles,
-                                                  puntos_infraestructura_transporte))
-                    colores_nube = np.concatenate((colores_superficie,colores_arboles,
-                                                  colores_infraestructura_transporte))
-                    
-                    
-                    with open("Nube_artificial_%i.npy"%i, 'wb') as f:    
-                        np.save(f, puntos_nube)
-            
-                    # labels_nube = np.concatenate((labels_superficie,labels_carretera,
-                    #                               labels_arcen,labels_talud))
-        
-                
-    
-            # with open("Nube_artificial_%i_arboles.npy"%i, 'wb') as f:    
-            #     np.save(f, puntos_arboles)
-                # np.save(f,labels_arboles)
-            
-                # Para cargar esos arrays haríamos así:
-                    
-                # with open("Nube_artificial_%i.npy"%s, 'rb') as f:
-                #     puntos_nube = np.load(f)
-                #     labels_nube = np.load(f)
-            
-            
-            
-            if not propuesta_IGN:
-            
-                os.chdir(ruta_simulaciones)
-                os.mkdir('nubes_open3d')
-                os.chdir('nubes_open3d')
-                
-                # Finalmente guardamos cada nube individual para la parte de intensidades:        
-                
-                o3d.io.write_point_cloud("superficie.pcd", superficie)
-                o3d.io.write_point_cloud("ARBOLES.pcd", ARBOLES)
-                if carretera:
-                    o3d.io.write_point_cloud("talud_i.pcd", talud_i)
-                    if tipo_carretera != 'local':
-                        o3d.io.write_point_cloud("arcen_i.pcd", arcen_i)
-                        o3d.io.write_point_cloud("berma_i.pcd", berma_i)
-                    o3d.io.write_point_cloud("carretera_i.pcd", carretera_i)
-                    if tipo_carretera in ['autovia','autopista']:
-                        o3d.io.write_point_cloud("mediana_i.pcd", mediana_i)
-                        o3d.io.write_point_cloud("pcd_barrera.pcd", pcd_barrera)
-                    try:
-                        o3d.io.write_point_cloud("barrera.pcd", pcd_barrera)
-                    except:
-                        pass
-                    try:
-                        o3d.io.write_point_cloud("barrera_quitamiedos_1.pcd", barrera_quitamiedos_1)
-                        o3d.io.write_point_cloud("barrera_quitamiedos_2.pcd", barrera_quitamiedos_2)
-                    except:
-                        pass
-                    try:
-                        for sss in range(len(SENHALES)):
-                            o3d.io.write_point_cloud("senhal_%i.pcd"%sss, SENHALES[sss])
-                        o3d.io.write_point_cloud("todas_las_senhales.pcd", todas_las_senhales)
-                    except:
-                        pass
-                
-                
-            else:    
-                os.chdir(ruta_simulaciones)
-                os.mkdir('nubes_open3d')
-                os.chdir('nubes_open3d')
-                
-                # Finalmente guardamos cada nube individual para la parte de intensidades:        
-                
-                o3d.io.write_point_cloud("superficie.pcd", superficie)
-                o3d.io.write_point_cloud("ARBOLES.pcd", ARBOLES)
-                if carretera:
-                    o3d.io.write_point_cloud("talud_i.pcd", talud_i)
-                    try:
-                        nube_infraestructura_transporte = o3d.geometry.PointCloud()
-                        nube_infraestructura_transporte.points = o3d.utility.Vector3dVector(puntos_infraestructura_transporte)
-                        nube_infraestructura_transporte.colors = o3d.utility.Vector3dVector(colores_infraestructura_transporte)
-                        o3d.io.write_point_cloud("infraestructura_transporte.pcd", nube_infraestructura_transporte)
-                    except:
-                        pass
-                
-                
-                
-            print('----------Pasamos a siguiente nube-----------')
-            
-    print('----------FIN DE LA CREACIÓN DE LAS NUBES-----------')
+    print('----------END OF POINT CLOUD GENERATION-----------')
     
             
-    if calcular_intensidades:
+    if spectral_mode:
         
         # Volcamos la memoria para no petar el kernel:
         sys.modules[__name__].__dict__.clear()
@@ -1305,10 +786,10 @@ def main():
         sys.path.insert(1, '/home/lino/Documentos/programas_pruebas_varias/simulacion_intensidades')
         import SIMULACION_TRAYECTORIA_INTENSIDAD
         
-        ruta_nubes = '/home/lino/Documentos/programas_pruebas_varias/segmentacion_python/segmentacion_bosques/aumentacion_de_datos/Nubes_artificiales_generadas/'
+        ruta_nubes = '/home/lino/Documentos/programas_pruebas_varias/segmentacion_python/segmentacion_bosques/aumentacion_de_datos/SYNTHETIC_PCDS_generadas/'
         os.chdir(ruta_nubes)
     
-        # Buscamos la carpeta más reciente:
+        # Buscamos la folder más reciente:
         all_subdirs = [d for d in os.listdir('.') if os.path.isdir(d)]
         latest_subdir = max(all_subdirs, key=os.path.getmtime)
         os.chdir(latest_subdir)
@@ -1338,16 +819,16 @@ def main():
     
     # PARÓN PARA VISUALIZAR -------------------------------------------------------
     
-    # NUBES_ARTIFICIALES.estimate_normals()
-    # NUBES_ARTIFICIALES.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=50))
-    # VECTOR_LASER_SUPERFICIE = np.array([0,0,1])
-    # NUBES_ARTIFICIALES.orient_normals_to_align_with_direction(VECTOR_LASER_SUPERFICIE)
-    # visor.custom_draw_geometry_with_key_callback(NUBES_ARTIFICIALES)
+    # SYNTHETIC_PCDS.estimate_normals()
+    # SYNTHETIC_PCDS.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=50))
+    # VECTOR_LASER_surface = np.array([0,0,1])
+    # SYNTHETIC_PCDS.orient_normals_to_align_with_direction(VECTOR_LASER_surface)
+    # visor.custom_draw_geometry_with_key_callback(SYNTHETIC_PCDS)
     
     '''
     a = 5
-    NUBES_ARTIFICIALES[a].estimate_normals()
-    visor.custom_draw_geometry_with_key_callback(NUBES_ARTIFICIALES[a])
+    SYNTHETIC_PCDS[a].estimate_normals()
+    visor.custom_draw_geometry_with_key_callback(SYNTHETIC_PCDS[a])
     '''
     
     
@@ -1357,3 +838,15 @@ def main():
 if __name__ == "__main__":
     main()
     
+    
+    # try:
+    #     main()
+    # except:
+    #     # Debug on errors:
+    #     type, value, tb = sys.exc_info()
+    #     traceback.print_exc()
+    #     last_frame = lambda tb=tb: last_frame(tb.tb_next) if tb.tb_next else tb
+    #     frame = last_frame().tb_frame
+    #     ns = dict(frame.f_globals)
+    #     ns.update(frame.f_locals)
+    #     code.interact(local=ns)
