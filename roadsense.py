@@ -8,7 +8,7 @@ Created on Mon Sep 20 10:43:27 2021
 
 import traceback, sys, code
 
-def main():
+def main():    
 
     import os
     import open3d as o3d
@@ -72,8 +72,16 @@ def main():
     
     
     
-    road = bool(config_file_lines[1][2])
-    spectral_mode = bool(config_file_lines[2][2])
+    road = config_file_lines[1][2]
+    if road == 'True':
+        road = True
+    else:
+        road = False
+    spectral_mode = config_file_lines[2][2]
+    if spectral_mode == 'True':
+        spectral_mode = True
+    else:
+        spectral_mode = False
     road_type = config_file_lines[3][2]
     tree_path = config_file_lines[4][2]
     number_of_clouds = int(config_file_lines[5][2])
@@ -93,7 +101,10 @@ def main():
     noise_slope = list(np.float_(config_file_lines[16][2].replace('(','').replace(')','').split(',')))
     noise_berm = list(np.float_(config_file_lines[17][2].replace('(','').replace(')','').split(',')))
     noise_refugee_island = list(np.float_(config_file_lines[18][2].replace('(','').replace(')','').split(',')))
-    number_trees_refugee_island = int(config_file_lines[19][2])
+    if road and road_type == 'highway':
+        number_trees_refugee_island = int(config_file_lines[19][2])
+    else:
+        number_trees_refugee_island = 0
     number_points_DTM = int(config_file_lines[20][2])
     vertical_pumping = bool(config_file_lines[21][2])
     
@@ -122,6 +133,7 @@ def main():
             if road_type in ['highway','national']:
                 
                 SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,BERMS,REFUGEE_ISLAND,pcd_central_barrier,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
+                    road = road,
                     road_type = road_type,
                     ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
                     scale = scale,
@@ -157,9 +169,9 @@ def main():
                     #**********************************************************************
                     # DEBUG PRINCIPAL                             (donde estoy traduciendo)
                     #**********************************************************************        
-                    print('LINO! COMPARA LAS VARIABLES TIPO 2 CON LAS ANTERIORES')
-                    import pdb
-                    pdb.set_trace()
+                    # print('LINO! COMPARA LAS VARIABLES TIPO 2 CON LAS ANTERIORES')
+                    # import pdb
+                    # pdb.set_trace()
 
                     
                     
@@ -180,6 +192,7 @@ def main():
 
                 elif road_type == 'local':
                     SURFACE,ROAD,SLOPE,SHOULDER,Signals_list,pcd_barrier_1,pcd_barrier_2 = DTM_road_generator(
+                        road = road,
                         road_type = road_type,
                         ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
                         scale = scale,
@@ -201,12 +214,23 @@ def main():
     
         else:
             # Point clouds with just DTM and trees:
-            SURFACE = creador_SURFACE(ORIGINAL_SEGMENTS,
-                                          scale = scale,
-                                          number_points_DTM = number_points_DTM)
-                                          # montana=montana,
-                                          # visualizacion=False,
-                                          # voxel_downsampling_size=voxel_downsampling_size)
+            SURFACE = DTM_road_generator(
+                                        road = road,
+                                        road_type = road_type,
+                                        ORIGINAL_SEGMENTS = ORIGINAL_SEGMENTS,
+                                        scale = scale,
+                                        number_points_DTM = number_points_DTM,
+                                        road_buffer = road_buffer,
+                                        slope_buffer = slope_buffer,
+                                        shoulder_buffer = shoulder_buffer,
+                                        berm_buffer = berm_buffer,
+                                        noise_DTM = noise_DTM,
+                                        noise_road = noise_road,
+                                        noise_slope = noise_slope,
+                                        noise_shoulder = noise_shoulder,
+                                        noise_berm = noise_berm,
+                                        noise_refugee_island = noise_refugee_island
+                                        )
                                           
             end_surface = time.time()
             
@@ -271,9 +295,11 @@ def main():
             if road_type in ['highway','mixed']:
                 refugee_island_i = REFUGEE_ISLAND
     
+        # import pdb
+        # pdb.set_trace()
         surface_points = np.array(surface.points)
         
-        if road_type in ['highway','mixed']:
+        if road and road_type in ['highway','mixed']:
             refugee_island_points = np.array(refugee_island_i.points)            
     
         SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
@@ -340,8 +366,11 @@ def main():
                 if counter_aux == len(SYNTHETIC_SEGMENTS_aux):
                     SYNTHETIC_SEGMENTS_aux = copy.deepcopy(SYNTHETIC_SEGMENTS)
                     counter_aux = 0
-    
-                possible_location = refugee_island_points[np.random.choice(len(refugee_island_points))]
+                
+                if road and road_type == 'highway':
+                    possible_location = refugee_island_points[np.random.choice(len(refugee_island_points))]
+                else:
+                    possible_location = surface_points[np.random.choice(len(surface_points))]
                 
                 index = np.random.choice(len(SYNTHETIC_SEGMENTS_aux))
                 # Let's choose randomly a tree:
@@ -677,7 +706,7 @@ def main():
                 points_pcd_barrier_2 = np.array(pcd_barrier_2.points)
                 with open("synthetic_cloud_%i_pcd_barrier_2.npy"%i, 'wb') as f:    
                     np.save(f, points_pcd_barrier_2)
-                points_shoulder = np.array(SHOULDER[0].points)
+                points_shoulder = np.array(SHOULDER.points)
                 # labels_arcen = np.full((1,len(points_shoulder)),3)[0]
                 with open("synthetic_cloud_%i_arcen.npy"%i, 'wb') as f:    
                     np.save(f, points_shoulder)
@@ -809,8 +838,8 @@ def main():
     
     
     
-    instante_finalisimo = time.time()
-    duracion_total = (instante_finalisimo - instante_inicialisimo)/60.
+    final_instant = time.time()
+    duracion_total = (final_instant - initial_instant)/60.
     
     print()
     print()
