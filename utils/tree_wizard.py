@@ -17,10 +17,10 @@ from matplotlib import cm
 from matplotlib.colors import LightSource
 import math
 
-import sys
-sys.path.insert(1, '/home/lino/Documentos/programas_pruebas_varias/modulo_visualizacion') # Ruta a mi visor customizado y módulo de lecturas
-import visualizaciones_customizadas_open3d as visor
-import lecturas_nubes_de_puntos as lectura
+# import sys
+# sys.path.insert(1, '/home/lino/Documentos/programas_pruebas_varias/modulo_visualizacion') # Ruta a mi visor customizado y módulo de lecturas
+# import visualizaciones_customizadas_open3d as visor
+# import lecturas_nubes_de_puntos as lectura
 
 
 
