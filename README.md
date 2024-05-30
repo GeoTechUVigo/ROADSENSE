@@ -13,3 +13,27 @@ Project 4Map4Health, selected in the call ERA-Net CHIST-ERA (2019). PCI2020-1207
 
 ![Alt_Text](https://github.com/GeoTechUVigo/ROADSENSE/blob/main/utils/aei.jpeg)
  
+
+└── ROADSENSE/
+    ├── roadsense.py
+    ├── README.md
+    ├── config/
+    │   └── forest_road_backbone.txt
+    ├── data/
+    │   └── trees_pcd/
+    │       ├── arbol_0.pcd
+    │       ├── arbol_1.pcd
+    │       ├── (...)
+    │       ├── arbol_117.pcd
+    │       └── arbol_118.pcd
+    ├── output/
+    │   └── README.md
+    └── utils/
+        ├── aei.jpeg
+        ├── cross_section.py
+        ├── DTM_road_wizard.py
+        ├── reading_trees.py
+        ├── road_generator.py
+        ├── signal_generator.py
+        ├── tree_wizard.py
+        └── INTERSECCION_MESH_TRAYECTORIA.py
