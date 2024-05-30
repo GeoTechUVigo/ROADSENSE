@@ -12,3 +12,4 @@ Comesaña-Cebral, L.; Martínez-Sánchez, J.; Seoane, A.N.; Arias, P. Transport 
 Project 4Map4Health, selected in the call ERA-Net CHIST-ERA (2019). PCI2020-120705-2, funded by MCIN/AEI/10.13039/501100011033 and by the European Union ‘NextGenerationEU’/PRTR’.
 
 ![Alt_Text](https://github.com/GeoTechUVigo/ROADSENSE/blob/main/utils/aei.jpeg)
+ 
