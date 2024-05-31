@@ -29,7 +29,6 @@ Project 4Map4Health, selected in the call ERA-Net CHIST-ERA (2019). PCI2020-1207
     ├── output/
     │   └── README.md
     └── utils/
-        ├── aei.jpeg
         ├── cross_section.py
         ├── DTM_road_wizard.py
         ├── reading_trees.py
